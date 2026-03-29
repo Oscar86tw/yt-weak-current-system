@@ -13,7 +13,8 @@
       --line: #d1d5db;
       --brand: #1f4f8a;
       --brand2: #0f172a;
-      --ok: #0f766e;
+      --soft: #eff6ff;
+      --success: #065f46;
     }
     * { box-sizing: border-box; }
     body {
@@ -22,209 +23,101 @@
       background: var(--bg);
       color: var(--text);
     }
-    .wrap {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 20px;
-    }
+    .wrap { max-width: 1360px; margin: 0 auto; padding: 20px; }
     .topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 18px;
-      flex-wrap: wrap;
+      display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px;
     }
     .brand {
       background: linear-gradient(135deg, var(--brand2), var(--brand));
-      color: #fff;
-      padding: 16px 20px;
-      border-radius: 18px;
-      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.15);
+      color: #fff; padding: 18px 22px; border-radius: 18px; box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
     }
-    .brand h1 {
-      margin: 0;
-      font-size: 24px;
-      letter-spacing: 1px;
-    }
-    .brand p {
-      margin: 6px 0 0;
-      font-size: 13px;
-      opacity: 0.9;
-    }
-    .actions {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
+    .brand h1 { margin: 0; font-size: 24px; }
+    .brand p { margin: 6px 0 0; font-size: 13px; opacity: .92; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
     button {
-      border: 0;
-      border-radius: 12px;
-      padding: 10px 14px;
-      font-size: 14px;
-      cursor: pointer;
-      background: var(--brand);
-      color: #fff;
+      border: 0; border-radius: 12px; padding: 10px 14px; font-size: 14px; cursor: pointer; background: var(--brand); color: #fff;
     }
     button.secondary { background: #475569; }
-    button.light {
-      background: #fff;
-      color: var(--brand2);
-      border: 1px solid var(--line);
+    button.light { background: #fff; color: var(--brand2); border: 1px solid var(--line); }
+    .layout {
+      display: grid; grid-template-columns: 320px 1fr; gap: 18px;
     }
-    .grid {
-      display: grid;
-      grid-template-columns: 360px 1fr;
-      gap: 18px;
+    .sidebar, .main {
+      background: var(--card); border-radius: 22px; border: 1px solid rgba(209,213,219,.7); box-shadow: 0 10px 24px rgba(15,23,42,.06);
     }
-    .panel, .preview {
-      background: var(--card);
-      border-radius: 22px;
-      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
-      border: 1px solid rgba(209, 213, 219, 0.6);
+    .sidebar { padding: 16px; position: sticky; top: 14px; align-self: start; }
+    .main { padding: 24px; min-height: 900px; }
+    .nav-title { font-size: 13px; color: var(--muted); font-weight: 700; margin: 4px 0 10px; }
+    .menu { display: grid; gap: 8px; }
+    .menu button { text-align: left; font-weight: 700; }
+    .menu button.active { background: var(--brand2); }
+    .sub-actions { margin-top: 16px; display: grid; gap: 8px; }
+    .hidden { display: none !important; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+    .card {
+      border: 1px solid var(--line); border-radius: 18px; padding: 18px; background: linear-gradient(180deg, #fff, #f9fbff);
     }
-    .panel {
-      padding: 16px;
-      position: sticky;
-      top: 14px;
-      align-self: start;
-    }
-    .preview {
-      padding: 28px;
-      min-height: 900px;
-    }
-    .tabs {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin-bottom: 14px;
-    }
-    .tab {
-      background: #e5e7eb;
-      color: #111827;
-      font-weight: 700;
-    }
-    .tab.active { background: var(--brand); color: #fff; }
-    .section-title {
-      margin: 14px 0 8px;
-      font-size: 13px;
-      color: var(--muted);
-      font-weight: 700;
-    }
-    label {
-      display: block;
-      font-size: 13px;
-      margin-bottom: 6px;
-      color: #374151;
-      font-weight: 700;
-    }
+    .card h3 { margin: 0 0 6px; font-size: 18px; }
+    .card p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.7; }
+    .card .go { margin-top: 14px; }
+    .section-title { margin: 16px 0 8px; font-size: 13px; color: var(--muted); font-weight: 700; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    label { display: block; font-size: 13px; margin-bottom: 6px; color: #374151; font-weight: 700; }
     input, textarea, select {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 10px 12px;
-      font-size: 14px;
-      margin-bottom: 10px;
-      background: #fff;
+      width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: 14px; margin-bottom: 10px; background: #fff;
     }
-    textarea { min-height: 72px; resize: vertical; }
-    .row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
+    textarea { min-height: 84px; resize: vertical; }
+    .split {
+      display: grid; grid-template-columns: 380px 1fr; gap: 18px;
     }
-    .quote-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-      font-size: 14px;
+    .form-panel, .preview-panel, .list-panel {
+      border: 1px solid var(--line); border-radius: 18px; background: #fff;
     }
-    .quote-table th, .quote-table td {
-      border: 1px solid #cbd5e1;
-      padding: 8px;
-      vertical-align: top;
+    .form-panel, .list-panel { padding: 16px; }
+    .preview-panel { padding: 28px; }
+    .table {
+      width: 100%; border-collapse: collapse; font-size: 14px;
     }
-    .quote-table th {
-      background: #eff6ff;
-    }
+    .table th, .table td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; vertical-align: top; }
+    .table th { background: var(--soft); }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
     .doc-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 20px;
-      border-bottom: 2px solid #111827;
-      padding-bottom: 12px;
-      margin-bottom: 18px;
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; border-bottom: 2px solid #111827; padding-bottom: 12px; margin-bottom: 18px;
     }
-    .doc-head h2 {
-      margin: 0;
-      font-size: 28px;
-      letter-spacing: 1px;
-    }
-    .doc-sub {
-      font-size: 13px;
-      color: var(--muted);
-      line-height: 1.7;
-    }
-    .block {
-      margin-bottom: 16px;
-    }
+    .doc-head h2 { margin: 0; font-size: 28px; letter-spacing: 1px; }
+    .doc-sub { font-size: 13px; color: var(--muted); line-height: 1.7; }
+    .block { margin-bottom: 16px; }
     .block h3 {
-      font-size: 16px;
-      margin: 0 0 8px;
-      background: #f8fafc;
-      padding: 8px 10px;
-      border-left: 4px solid var(--brand);
-      border-radius: 8px;
+      font-size: 16px; margin: 0 0 8px; background: #f8fafc; padding: 8px 10px; border-left: 4px solid var(--brand); border-radius: 8px;
     }
-    .block p, .block li {
-      line-height: 1.8;
-      font-size: 14px;
+    .block p, .block li { line-height: 1.8; font-size: 14px; }
+    .sign-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 42px; }
+    .sign-box { padding-top: 40px; border-top: 1px solid #111827; min-height: 90px; }
+    .info-box {
+      padding: 12px 14px; border-radius: 14px; background: #ecfeff; border: 1px solid #a5f3fc; color: #155e75; font-size: 13px; line-height: 1.7;
     }
-    .sign-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 30px;
-      margin-top: 42px;
+    .list-item {
+      border: 1px solid var(--line); border-radius: 14px; padding: 12px; margin-bottom: 10px; background: #fff;
     }
-    .sign-box {
-      padding-top: 40px;
-      border-top: 1px solid #111827;
-      min-height: 90px;
-    }
+    .list-item strong { display: block; margin-bottom: 6px; }
     .muted { color: var(--muted); }
-    .hint {
-      background: #ecfeff;
-      color: #155e75;
-      border: 1px solid #a5f3fc;
-      padding: 10px 12px;
-      border-radius: 12px;
-      font-size: 13px;
-      margin-top: 10px;
-      line-height: 1.6;
+    .home-hero {
+      background: linear-gradient(135deg, #0f172a, #1f4f8a); color: #fff; border-radius: 24px; padding: 24px; margin-bottom: 18px;
     }
-    .hidden { display: none; }
-    .footer-note {
-      margin-top: 22px;
-      font-size: 12px;
-      color: #6b7280;
-      text-align: center;
-    }
+    .home-hero h2 { margin: 0 0 6px; font-size: 28px; }
+    .home-hero p { margin: 0; line-height: 1.8; opacity: .95; }
     @media print {
       body { background: #fff; }
-      .panel, .topbar .actions, .hint { display: none !important; }
-      .grid { display: block; }
-      .preview {
-        box-shadow: none;
-        border: none;
-        padding: 0;
-      }
+      .sidebar, .topbar .actions, .toolbar, .form-panel, .list-panel, .home-hero, .cards { display: none !important; }
+      .layout, .split { display: block; }
+      .main, .preview-panel { box-shadow: none; border: none; padding: 0; }
       .wrap { max-width: 100%; padding: 0; }
       @page { size: A4; margin: 12mm; }
     }
-    @media (max-width: 980px) {
-      .grid { grid-template-columns: 1fr; }
-      .panel { position: static; }
+    @media (max-width: 1100px) {
+      .layout, .split { grid-template-columns: 1fr; }
+      .sidebar { position: static; }
     }
   </style>
 </head>
@@ -233,178 +126,361 @@
     <div class="topbar">
       <div class="brand">
         <h1>昱拓弱電有限公司｜公司文件系統</h1>
-        <p>報價單 / 維護合約 / 驗收單 ｜ 單機版、自存版、可列印</p>
+        <p>首頁 / 客戶資料 / 報價單 / 維護合約 / 驗收單 ｜ 單機版、自存版、可列印</p>
       </div>
       <div class="actions">
-        <button onclick="saveData()">儲存到本機</button>
+        <button onclick="saveAllData()">儲存到本機</button>
         <button class="secondary" onclick="window.print()">列印 / 另存 PDF</button>
         <button class="light" onclick="exportJson()">匯出資料</button>
         <button class="light" onclick="importJson()">匯入資料</button>
-        <button class="light" onclick="resetForm()">清空</button>
+        <button class="light" onclick="resetAll()">清空</button>
       </div>
     </div>
 
-    <div class="grid">
-      <div class="panel">
-        <div class="tabs">
-          <button id="tab-quote" class="tab active" onclick="setDoc('quote')">報價單</button>
-          <button id="tab-contract" class="tab" onclick="setDoc('contract')">維護合約</button>
-          <button id="tab-acceptance" class="tab" onclick="setDoc('acceptance')">驗收單</button>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="nav-title">功能選單</div>
+        <div class="menu">
+          <button id="menu-home" class="active" onclick="setPage('home')">首頁</button>
+          <button id="menu-clients" onclick="setPage('clients')">客戶資料表單</button>
+          <button id="menu-quote" onclick="setPage('quote')">新增報價單</button>
+          <button id="menu-contract" onclick="setPage('contract')">新增維護合約</button>
+          <button id="menu-acceptance" onclick="setPage('acceptance')">新增驗收單</button>
         </div>
-
-        <div class="section-title">公司基本資料</div>
-        <label>公司名稱</label>
-        <input id="companyName" value="昱拓弱電有限公司" />
-        <label>服務標語</label>
-        <input id="companyTag" value="弱電系統維修｜監控｜門禁｜對講｜車道停管｜BA中央監控" />
-        <label>聯絡電話</label>
-        <input id="companyPhone" value="0960-770-512" />
-        <label>公司地址</label>
-        <input id="companyAddress" value="桃園市中壢區榮安一街490號13樓" />
-        <label>統一編號</label>
-        <input id="companyTaxId" placeholder="請輸入統編" />
-
-        <div class="section-title">文件資訊</div>
-        <div class="row">
-          <div>
-            <label>文件編號</label>
-            <input id="docNo" value="A1150328001" />
-          </div>
-          <div>
-            <label>日期</label>
-            <input id="docDate" placeholder="例如：115.03.29" />
+        <div class="sub-actions">
+          <div class="info-box">
+            先建立客戶資料，再新增報價單。<br>
+            報價表單中的「客戶名稱」會自動變成下拉選單，方便直接選取。
           </div>
         </div>
-        <label>客戶名稱</label>
-        <input id="customerName" />
-        <div class="row">
-          <div>
-            <label>聯絡人</label>
-            <input id="contactPerson" />
-          </div>
-          <div>
-            <label>聯絡電話</label>
-            <input id="contactPhone" />
-          </div>
-        </div>
-        <label>工程 / 合約名稱</label>
-        <input id="projectName" />
+      </aside>
 
-        <div id="quote-fields">
-          <div class="section-title">報價內容</div>
-          <label>項目 1</label>
-          <textarea id="item1">對講主機拆卸、返廠檢測、按鍵機板更換、返場安裝測試</textarea>
-          <div class="row">
-            <div><label>數量</label><input id="qty1" value="1" /></div>
-            <div><label>單價</label><input id="price1" value="0" /></div>
+      <main class="main">
+        <section id="page-home">
+          <div class="home-hero">
+            <h2>歡迎使用昱拓弱電文件系統</h2>
+            <p>這個首頁是你的工作入口。你可以先建立客戶資料，再建立報價單、維護合約與驗收單。所有資料都會先存放在本機瀏覽器，之後也可以再接資料庫版本。</p>
           </div>
-          <label>項目 2</label>
-          <textarea id="item2"></textarea>
-          <div class="row">
-            <div><label>數量</label><input id="qty2" value="" /></div>
-            <div><label>單價</label><input id="price2" value="" /></div>
+          <div class="cards">
+            <div class="card">
+              <h3>建立客戶資料</h3>
+              <p>建立客戶名稱、統編、聯絡人、電話、通訊地址與職位。建立後可查詢，也可在報價單直接下拉選取。</p>
+              <button class="go" onclick="setPage('clients')">前往客戶資料</button>
+            </div>
+            <div class="card">
+              <h3>新增報價單</h3>
+              <p>選擇既有客戶，快速建立報價單，右側即時預覽正式版型，可列印成 PDF。</p>
+              <button class="go" onclick="setPage('quote')">前往報價單</button>
+            </div>
+            <div class="card">
+              <h3>新增維護合約</h3>
+              <p>以同一份公司資料快速製作維護合約，保留條款與簽章區塊。</p>
+              <button class="go" onclick="setPage('contract')">前往維護合約</button>
+            </div>
+            <div class="card">
+              <h3>新增驗收單</h3>
+              <p>建立完工驗收紀錄，保留簽章與備註區，方便施工後立即確認。</p>
+              <button class="go" onclick="setPage('acceptance')">前往驗收單</button>
+            </div>
           </div>
-          <label>施工 / 查修說明</label>
-          <textarea id="quoteDesc">1. 本案包含對講主機拆卸後送原廠進行檢測與維修作業，實際維修內容依原廠檢測結果為準。
+        </section>
+
+        <section id="page-clients" class="hidden">
+          <div class="split">
+            <div class="form-panel">
+              <h2 style="margin-top:0;">客戶資料表單</h2>
+              <label>客戶名稱</label>
+              <input id="clientName" placeholder="例如：利晉學府管理委員會" />
+              <div class="row">
+                <div>
+                  <label>統一編號</label>
+                  <input id="clientTaxId" />
+                </div>
+                <div>
+                  <label>聯絡電話</label>
+                  <input id="clientPhone" />
+                </div>
+              </div>
+              <div class="row">
+                <div>
+                  <label>聯絡人</label>
+                  <input id="clientContact" />
+                </div>
+                <div>
+                  <label>職位</label>
+                  <input id="clientJobTitle" placeholder="例如：總幹事" />
+                </div>
+              </div>
+              <label>通訊地址</label>
+              <textarea id="clientAddress"></textarea>
+              <div class="toolbar">
+                <button onclick="addClient()">儲存客戶</button>
+                <button class="light" onclick="clearClientForm()">清空欄位</button>
+              </div>
+              <div class="info-box">建立完成後，報價單頁面的「客戶名稱」會自動出現在下拉選單中。</div>
+            </div>
+            <div class="list-panel">
+              <div class="toolbar">
+                <input id="clientSearch" placeholder="輸入客戶名稱 / 聯絡人 / 電話查詢" oninput="renderClientList()" />
+              </div>
+              <div id="clientList"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="page-quote" class="hidden">
+          <div class="split">
+            <div class="form-panel">
+              <h2 style="margin-top:0;">報價單表單</h2>
+              <div class="section-title">公司基本資料</div>
+              <label>公司名稱</label>
+              <input id="companyName" value="昱拓弱電有限公司" />
+              <label>服務標語</label>
+              <input id="companyTag" value="弱電系統維修｜監控｜門禁｜對講｜車道停管｜BA中央監控" />
+              <label>聯絡電話</label>
+              <input id="companyPhone" value="0960-770-512" />
+              <label>公司地址</label>
+              <input id="companyAddress" value="桃園市中壢區榮安一街490號13樓" />
+              <label>統一編號</label>
+              <input id="companyTaxId" placeholder="請輸入統編" />
+
+              <div class="section-title">文件資訊</div>
+              <div class="row">
+                <div><label>文件編號</label><input id="docNo" value="A1150328001" /></div>
+                <div><label>日期</label><input id="docDate" placeholder="例如：115.03.29" /></div>
+              </div>
+              <label>客戶名稱（下拉選單）</label>
+              <select id="customerSelect" onchange="fillCustomerFromSelect()"></select>
+              <div class="row3">
+                <div><label>聯絡人</label><input id="contactPerson" /></div>
+                <div><label>聯絡電話</label><input id="contactPhone" /></div>
+                <div><label>職位</label><input id="contactJobTitle" /></div>
+              </div>
+              <label>通訊地址</label>
+              <textarea id="customerAddress"></textarea>
+              <label>工程 / 合約名稱</label>
+              <input id="projectName" />
+
+              <div class="section-title">報價內容</div>
+              <label>項目 1</label>
+              <textarea id="item1">對講主機拆卸、返廠檢測、按鍵機板更換、返場安裝測試</textarea>
+              <div class="row">
+                <div><label>數量</label><input id="qty1" value="1" /></div>
+                <div><label>單價</label><input id="price1" value="0" /></div>
+              </div>
+              <label>項目 2</label>
+              <textarea id="item2"></textarea>
+              <div class="row">
+                <div><label>數量</label><input id="qty2" value="" /></div>
+                <div><label>單價</label><input id="price2" value="" /></div>
+              </div>
+              <label>施工 / 查修說明</label>
+              <textarea id="quoteDesc">1. 本案包含對講主機拆卸後送原廠進行檢測與維修作業，實際維修內容依原廠檢測結果為準。
 2. 設備拆卸送修期間，原大門門禁系統將暫時無法進行管制，建議管理單位於維修期間加強巡視。
 3. 設備返廠維修期間之工期，依原廠作業時間為準。
 4. 設備維修完成並返場安裝後，將恢復原有門禁控制功能並進行基本測試。
 5. 維修期間因門禁暫時解除管制所產生之安全風險，建議由管理單位自行加強巡視與管理。</textarea>
-          <label>報價條款</label>
-          <textarea id="quoteTerms">1. 本報價單有效期限為15日。
+              <label>報價條款</label>
+              <textarea id="quoteTerms">1. 本報價單有效期限為15日。
 2. 本公司依稅法規定，將全額開立統一發票。
 3. 本工程完工後，客戶應於一個月內完成驗收；逾期未提出異議者，視同驗收完成。
 4. 付款方式：本案於完工驗收後，請客戶於次月5日前完成撥款。
 5. 本估價內容以現場現況施工為準，如有新增或變更項目，費用另行報價。</textarea>
-        </div>
+            </div>
+            <div class="preview-panel" id="quotePreview"></div>
+          </div>
+        </section>
 
-        <div id="contract-fields" class="hidden">
-          <div class="section-title">維護合約內容</div>
-          <label>服務範圍</label>
-          <textarea id="contractScope">門禁管制系統、對講機系統、數位監視系統、車道停管系統、BA中央監控系統、共同天線系統。</textarea>
-          <label>巡檢頻率</label>
-          <input id="contractFreq" value="每月1次" />
-          <label>合約金額（未稅）</label>
-          <input id="contractAmount" value="4280" />
-          <label>合約條款</label>
-          <textarea id="contractTerms">1. 本合約為年度保養合約，每月執行一次例行性巡檢保養。
+        <section id="page-contract" class="hidden">
+          <div class="split">
+            <div class="form-panel">
+              <h2 style="margin-top:0;">維護合約表單</h2>
+              <label>合約名稱</label>
+              <input id="contractProjectName" />
+              <label>服務範圍</label>
+              <textarea id="contractScope">門禁管制系統、對講機系統、數位監視系統、車道停管系統、BA中央監控系統、共同天線系統。</textarea>
+              <div class="row">
+                <div><label>巡檢頻率</label><input id="contractFreq" value="每月1次" /></div>
+                <div><label>合約金額（未稅）</label><input id="contractAmount" value="4280" /></div>
+              </div>
+              <label>合約條款</label>
+              <textarea id="contractTerms">1. 本合約為年度保養合約，每月執行一次例行性巡檢保養。
 2. 本報價僅包含定期保養檢測工資，若檢測發現設備故障需更換耗材或零件，材料費另行報價。
 3. 合約期間內享有叫修優先服務權，緊急叫修回應時間為6小時內。
 4. 保養完成並交付保養報告書後，請於次月10日前以匯款或支票支付。
 5. 施工期間請貴單位協助配合進出管制與電源開關事宜。</textarea>
-        </div>
+            </div>
+            <div class="preview-panel" id="contractPreview"></div>
+          </div>
+        </section>
 
-        <div id="acceptance-fields" class="hidden">
-          <div class="section-title">驗收內容</div>
-          <label>完成項目</label>
-          <textarea id="acceptanceContent">1. 設備安裝完成。
+        <section id="page-acceptance" class="hidden">
+          <div class="split">
+            <div class="form-panel">
+              <h2 style="margin-top:0;">驗收單表單</h2>
+              <label>完成項目</label>
+              <textarea id="acceptanceContent">1. 設備安裝完成。
 2. 線路整理完成。
 3. 系統測試正常。
 4. 基本操作說明完成。</textarea>
-          <label>備註</label>
-          <textarea id="acceptanceNote">如後續發現非本次施工範圍之既有設備異常，將另行檢測與報價。</textarea>
-        </div>
-
-        <div class="hint">
-          這份 HTML 可直接放在你自己電腦裡使用，也可以丟到區網電腦共用。<br>
-          最簡單方式：雙擊打開就能用；進階方式：用本機伺服器跑，手機與辦公室電腦可共用。
-        </div>
-      </div>
-
-      <div class="preview" id="preview"></div>
+              <label>備註</label>
+              <textarea id="acceptanceNote">如後續發現非本次施工範圍之既有設備異常，將另行檢測與報價。</textarea>
+            </div>
+            <div class="preview-panel" id="acceptancePreview"></div>
+          </div>
+        </section>
+      </main>
     </div>
   </div>
 
   <input type="file" id="importFile" accept="application/json" class="hidden" />
 
   <script>
-    let currentDoc = 'quote';
-    const ids = [
-      'companyName','companyTag','companyPhone','companyAddress','companyTaxId','docNo','docDate','customerName','contactPerson','contactPhone','projectName',
+    let currentPage = 'home';
+    let clients = [];
+    const formIds = [
+      'companyName','companyTag','companyPhone','companyAddress','companyTaxId','docNo','docDate','contactPerson','contactPhone','contactJobTitle','customerAddress','projectName',
       'item1','qty1','price1','item2','qty2','price2','quoteDesc','quoteTerms',
-      'contractScope','contractFreq','contractAmount','contractTerms',
+      'contractProjectName','contractScope','contractFreq','contractAmount','contractTerms',
       'acceptanceContent','acceptanceNote'
     ];
+    const clientFormIds = ['clientName','clientTaxId','clientContact','clientPhone','clientAddress','clientJobTitle'];
 
-    function getVal(id){ return document.getElementById(id).value || ''; }
+    function getVal(id){ const el = document.getElementById(id); return el ? (el.value || '') : ''; }
+    function setVal(id, value){ const el = document.getElementById(id); if(el) el.value = value ?? ''; }
     function n(v){ const x = parseFloat(v); return isNaN(x) ? 0 : x; }
     function money(v){ return Number(v || 0).toLocaleString('zh-TW'); }
     function nl2br(s){ return (s || '').replace(/\n/g, '<br>'); }
     function splitLines(s){ return (s || '').split('\n').filter(Boolean); }
 
-    ids.forEach(id => {
+    [...formIds, ...clientFormIds].forEach(id => {
       const el = document.getElementById(id);
-      if(el){
-        el.addEventListener('input', render);
-      }
+      if(el) el.addEventListener('input', renderAll);
     });
 
-    function setDoc(type){
-      currentDoc = type;
-      document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-      document.getElementById('tab-' + type).classList.add('active');
-      document.getElementById('quote-fields').classList.toggle('hidden', type !== 'quote');
-      document.getElementById('contract-fields').classList.toggle('hidden', type !== 'contract');
-      document.getElementById('acceptance-fields').classList.toggle('hidden', type !== 'acceptance');
-      render();
+    function setPage(page){
+      currentPage = page;
+      ['home','clients','quote','contract','acceptance'].forEach(p => {
+        document.getElementById('page-' + p).classList.toggle('hidden', p !== page);
+        document.getElementById('menu-' + p).classList.toggle('active', p === page);
+      });
+      renderAll();
+    }
+
+    function addClient(){
+      const client = {
+        id: Date.now(),
+        name: getVal('clientName').trim(),
+        taxId: getVal('clientTaxId').trim(),
+        contact: getVal('clientContact').trim(),
+        phone: getVal('clientPhone').trim(),
+        address: getVal('clientAddress').trim(),
+        jobTitle: getVal('clientJobTitle').trim()
+      };
+      if(!client.name){
+        alert('請先輸入客戶名稱。');
+        return;
+      }
+      const existingIndex = clients.findIndex(c => c.name === client.name);
+      if(existingIndex >= 0){
+        clients[existingIndex] = {...clients[existingIndex], ...client, id: clients[existingIndex].id};
+      } else {
+        clients.push(client);
+      }
+      clearClientForm();
+      saveAllData(false);
+      renderAll();
+      alert('客戶資料已儲存。');
+    }
+
+    function clearClientForm(){
+      clientFormIds.forEach(id => setVal(id, ''));
+    }
+
+    function renderCustomerSelect(){
+      const select = document.getElementById('customerSelect');
+      if(!select) return;
+      const current = select.value;
+      let options = '<option value="">請選擇客戶</option>';
+      clients.forEach(c => {
+        options += `<option value="${c.id}">${c.name}</option>`;
+      });
+      select.innerHTML = options;
+      if(clients.some(c => String(c.id) === String(current))) select.value = current;
+    }
+
+    function fillCustomerFromSelect(){
+      const id = document.getElementById('customerSelect').value;
+      const client = clients.find(c => String(c.id) === String(id));
+      if(!client) return;
+      setVal('contactPerson', client.contact);
+      setVal('contactPhone', client.phone);
+      setVal('contactJobTitle', client.jobTitle);
+      setVal('customerAddress', client.address);
+      renderAll();
+    }
+
+    function deleteClient(id){
+      if(!confirm('確定刪除此客戶資料嗎？')) return;
+      clients = clients.filter(c => c.id !== id);
+      saveAllData(false);
+      renderAll();
+    }
+
+    function useClient(id){
+      document.getElementById('customerSelect').value = String(id);
+      fillCustomerFromSelect();
+      setPage('quote');
+    }
+
+    function renderClientList(){
+      const keyword = (getVal('clientSearch') || '').trim().toLowerCase();
+      const box = document.getElementById('clientList');
+      const rows = clients.filter(c => {
+        const text = `${c.name} ${c.contact} ${c.phone} ${c.address} ${c.jobTitle} ${c.taxId}`.toLowerCase();
+        return !keyword || text.includes(keyword);
+      });
+      if(!rows.length){
+        box.innerHTML = '<div class="muted">目前尚無客戶資料。</div>';
+        return;
+      }
+      box.innerHTML = rows.map(c => `
+        <div class="list-item">
+          <strong>${c.name}</strong>
+          <div>統編：${c.taxId || '—'}</div>
+          <div>聯絡人：${c.contact || '—'}　職位：${c.jobTitle || '—'}</div>
+          <div>電話：${c.phone || '—'}</div>
+          <div>地址：${c.address || '—'}</div>
+          <div class="toolbar" style="margin-top:10px; margin-bottom:0;">
+            <button onclick="useClient(${c.id})">帶入報價單</button>
+            <button class="light" onclick="deleteClient(${c.id})">刪除</button>
+          </div>
+        </div>
+      `).join('');
     }
 
     function header(title){
+      const customerText = (() => {
+        const select = document.getElementById('customerSelect');
+        if(!select) return '＿＿＿＿';
+        const option = select.options[select.selectedIndex];
+        return option && option.value ? option.text : '＿＿＿＿';
+      })();
       return `
-      <div class="doc-head">
-        <div>
-          <h2>${getVal('companyName')}</h2>
-          <div class="doc-sub">${getVal('companyTag')}<br>電話：${getVal('companyPhone')}<br>地址：${getVal('companyAddress')}<br>統一編號：${getVal('companyTaxId') || '＿＿＿＿＿＿＿＿'}</div>
-        </div>
-        <div class="doc-sub" style="text-align:right; min-width:220px;">
-          <strong style="font-size:20px; color:#111827;">${title}</strong><br><br>
-          文件編號：${getVal('docNo') || '＿＿＿＿'}<br>
-          日期：${getVal('docDate') || '＿＿＿＿'}<br>
-          客戶：${getVal('customerName') || '＿＿＿＿'}<br>
-          聯絡人：${getVal('contactPerson') || '＿＿＿＿'}<br>
-          電話：${getVal('contactPhone') || '＿＿＿＿'}
-        </div>
-      </div>`;
+        <div class="doc-head">
+          <div>
+            <h2>${getVal('companyName')}</h2>
+            <div class="doc-sub">${getVal('companyTag')}<br>電話：${getVal('companyPhone')}<br>地址：${getVal('companyAddress')}<br>統一編號：${getVal('companyTaxId') || '＿＿＿＿＿＿＿＿'}</div>
+          </div>
+          <div class="doc-sub" style="text-align:right; min-width:240px;">
+            <strong style="font-size:20px; color:#111827;">${title}</strong><br><br>
+            文件編號：${getVal('docNo') || '＿＿＿＿'}<br>
+            日期：${getVal('docDate') || '＿＿＿＿'}<br>
+            客戶：${customerText}<br>
+            聯絡人：${getVal('contactPerson') || '＿＿＿＿'}<br>
+            電話：${getVal('contactPhone') || '＿＿＿＿'}
+          </div>
+        </div>`;
     }
 
     function renderQuote(){
@@ -413,24 +489,20 @@
       const subtotal = qty1 * price1 + qty2 * price2;
       const tax = Math.round(subtotal * 0.05);
       const total = subtotal + tax;
-
-      return `
+      document.getElementById('quotePreview').innerHTML = `
         ${header('工程報價單')}
         <div class="block"><h3>工程名稱</h3><p>${getVal('projectName') || '＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿'}</p></div>
+        <div class="block"><h3>客戶資訊</h3><p>通訊地址：${nl2br(getVal('customerAddress') || '＿＿＿＿＿＿＿＿＿＿＿＿')}<br>職位：${getVal('contactJobTitle') || '＿＿＿＿'}</p></div>
         <div class="block">
           <h3>工程內容與費用</h3>
-          <table class="quote-table">
+          <table class="table">
             <thead><tr><th style="width:60px;">項次</th><th>內容</th><th style="width:80px;">數量</th><th style="width:110px;">單價</th><th style="width:120px;">小計</th></tr></thead>
             <tbody>
               <tr><td>1</td><td>${nl2br(getVal('item1')) || '&nbsp;'}</td><td>${getVal('qty1') || ''}</td><td>${getVal('price1') ? 'NT$ ' + money(getVal('price1')) : ''}</td><td>${qty1 && price1 ? 'NT$ ' + money(qty1*price1) : ''}</td></tr>
               <tr><td>2</td><td>${nl2br(getVal('item2')) || '&nbsp;'}</td><td>${getVal('qty2') || ''}</td><td>${getVal('price2') ? 'NT$ ' + money(getVal('price2')) : ''}</td><td>${qty2 && price2 ? 'NT$ ' + money(qty2*price2) : ''}</td></tr>
             </tbody>
           </table>
-          <p style="text-align:right; margin-top:12px; line-height:1.9;">
-            小計：NT$ ${money(subtotal)}<br>
-            營業稅（5%）：NT$ ${money(tax)}<br>
-            <strong style="font-size:18px;">合計：NT$ ${money(total)}</strong>
-          </p>
+          <p style="text-align:right; margin-top:12px; line-height:1.9;">小計：NT$ ${money(subtotal)}<br>營業稅（5%）：NT$ ${money(tax)}<br><strong style="font-size:18px;">合計：NT$ ${money(total)}</strong></p>
         </div>
         <div class="block"><h3>施工 / 查修說明</h3><ol>${splitLines(getVal('quoteDesc')).map(x=>`<li>${x.replace(/^\d+\./,'').trim()}</li>`).join('')}</ol></div>
         <div class="block"><h3>報價條款與備註</h3><ol>${splitLines(getVal('quoteTerms')).map(x=>`<li>${x.replace(/^\d+\./,'').trim()}</li>`).join('')}</ol></div>
@@ -438,7 +510,6 @@
           <div class="sign-box">客戶簽章：<br><br>日期：＿＿＿＿年＿＿＿＿月＿＿＿＿日</div>
           <div class="sign-box">${getVal('companyName')}<br>公司印鑑：<br><br>統一編號：${getVal('companyTaxId') || '＿＿＿＿＿＿＿＿'}</div>
         </div>
-        <div class="footer-note">本報價單經客戶簽章確認後，即視同正式契約並生效。</div>
       `;
     }
 
@@ -446,9 +517,9 @@
       const amount = n(getVal('contractAmount'));
       const tax = Math.round(amount * 0.05);
       const total = amount + tax;
-      return `
+      document.getElementById('contractPreview').innerHTML = `
         ${header('弱電系統維護合約 / 報價單')}
-        <div class="block"><h3>合約名稱</h3><p>${getVal('projectName') || '＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿'}</p></div>
+        <div class="block"><h3>合約名稱</h3><p>${getVal('contractProjectName') || '＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿'}</p></div>
         <div class="block"><h3>服務範圍</h3><p>${nl2br(getVal('contractScope'))}</p></div>
         <div class="block"><h3>巡檢頻率</h3><p>${getVal('contractFreq') || '每月1次'}</p></div>
         <div class="block"><h3>合約金額</h3><p>未稅：NT$ ${money(amount)}<br>營業稅（5%）：NT$ ${money(tax)}<br><strong>含稅總額：NT$ ${money(total)}</strong></p></div>
@@ -461,7 +532,7 @@
     }
 
     function renderAcceptance(){
-      return `
+      document.getElementById('acceptancePreview').innerHTML = `
         ${header('施工完成驗收單')}
         <div class="block"><h3>驗收項目</h3><ol>${splitLines(getVal('acceptanceContent')).map(x=>`<li>${x.replace(/^\d+\./,'').trim()}</li>`).join('')}</ol></div>
         <div class="block"><h3>備註</h3><p>${nl2br(getVal('acceptanceNote'))}</p></div>
@@ -473,42 +544,46 @@
       `;
     }
 
-    function render(){
-      let html = '';
-      if(currentDoc === 'quote') html = renderQuote();
-      if(currentDoc === 'contract') html = renderContract();
-      if(currentDoc === 'acceptance') html = renderAcceptance();
-      document.getElementById('preview').innerHTML = html;
+    function renderAll(){
+      renderCustomerSelect();
+      renderClientList();
+      renderQuote();
+      renderContract();
+      renderAcceptance();
     }
 
-    function saveData(){
-      const data = {};
-      ids.forEach(id => data[id] = getVal(id));
-      data.currentDoc = currentDoc;
-      localStorage.setItem('yt-forms-data', JSON.stringify(data));
-      alert('已儲存到本機瀏覽器。');
+    function saveAllData(showAlert = true){
+      const data = { currentPage, clients };
+      formIds.forEach(id => data[id] = getVal(id));
+      localStorage.setItem('yt-company-system-data', JSON.stringify(data));
+      if(showAlert) alert('已儲存到本機瀏覽器。');
     }
 
-    function loadData(){
-      const raw = localStorage.getItem('yt-forms-data');
-      if(!raw) return;
-      try{
+    function loadAllData(){
+      const raw = localStorage.getItem('yt-company-system-data');
+      if(!raw) {
+        renderAll();
+        return;
+      }
+      try {
         const data = JSON.parse(raw);
-        ids.forEach(id => {
-          if(data[id] !== undefined) document.getElementById(id).value = data[id];
+        clients = Array.isArray(data.clients) ? data.clients : [];
+        formIds.forEach(id => {
+          if(data[id] !== undefined) setVal(id, data[id]);
         });
-        setDoc(data.currentDoc || 'quote');
-      }catch(e){ render(); }
+        setPage(data.currentPage || 'home');
+      } catch(e) {
+        renderAll();
+      }
     }
 
     function exportJson(){
-      const data = {};
-      ids.forEach(id => data[id] = getVal(id));
-      data.currentDoc = currentDoc;
+      const data = { currentPage, clients };
+      formIds.forEach(id => data[id] = getVal(id));
       const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'yt_forms_backup.json';
+      a.download = 'yt_company_system_backup.json';
       a.click();
       URL.revokeObjectURL(a.href);
     }
@@ -522,31 +597,30 @@
       if(!file) return;
       const reader = new FileReader();
       reader.onload = () => {
-        try{
+        try {
           const data = JSON.parse(reader.result);
-          ids.forEach(id => {
-            if(data[id] !== undefined) document.getElementById(id).value = data[id];
+          clients = Array.isArray(data.clients) ? data.clients : [];
+          formIds.forEach(id => {
+            if(data[id] !== undefined) setVal(id, data[id]);
           });
-          setDoc(data.currentDoc || 'quote');
-          saveData();
-        }catch(err){ alert('匯入失敗，請確認 JSON 格式。'); }
+          saveAllData(false);
+          setPage(data.currentPage || 'home');
+          alert('資料匯入成功。');
+        } catch(err) {
+          alert('匯入失敗，請確認 JSON 格式。');
+        }
       };
       reader.readAsText(file, 'utf-8');
     });
 
-    function resetForm(){
-      if(!confirm('確定要清空目前內容嗎？')) return;
-      ids.forEach(id => document.getElementById(id).value = '');
-      document.getElementById('companyName').value = '昱拓弱電有限公司';
-      document.getElementById('companyTag').value = '弱電系統維修｜監控｜門禁｜對講｜車道停管｜BA中央監控';
-      document.getElementById('companyPhone').value = '0960-770-512';
-      document.getElementById('companyAddress').value = '桃園市中壢區榮安一街490號13樓';
-      currentDoc = 'quote';
-      render();
+    function resetAll(){
+      if(!confirm('確定要清空目前全部資料嗎？')) return;
+      localStorage.removeItem('yt-company-system-data');
+      location.reload();
     }
 
-    loadData();
-    render();
+    loadAllData();
+    renderAll();
   </script>
 </body>
 </html>
