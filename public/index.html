@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>昱拓弱電系統</title>
+</head>
+<body>
+
+<h2>新增報價</h2>
+
+客戶：<input id="customer"><br>
+工程：<input id="project"><br>
+金額：<input id="amount"><br>
+
+<button onclick="save()">儲存</button>
+
+<h2>報價列表</h2>
+<ul id="list"></ul>
+
+<script>
+function save() {
+  fetch('/api/quote', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      customer: customer.value,
+      project: project.value,
+      amount: amount.value,
+      date: new Date().toLocaleDateString()
+    })
+  }).then(load);
+}
+
+function load() {
+  fetch('/api/quote')
+    .then(r => r.json())
+    .then(data => {
+      list.innerHTML = '';
+      data.forEach(i => {
+        list.innerHTML += `<li>${i.customer} - ${i.project} - ${i.amount}</li>`;
+      });
+    });
+}
+
+load();
+</script>
+
+</body>
+</html>
