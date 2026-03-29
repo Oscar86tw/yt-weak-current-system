@@ -1,13 +1,10 @@
 <!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>首頁｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"></head><body><div id="app"></div><script src="/js/common.js"></script>
 <script>
 document.getElementById('app').innerHTML = layout('首頁 / 功能入口', `
-<section class="hero">
-  <h2>歡迎使用昱拓弱電公司系統 V4</h2>
-  <p>本版新增第二層功能選單、客戶資料修改、所有新增表單的修改存檔，以及登入驗證。報價單支援自動編號、客戶快速搜尋與 PDF 匯出。</p>
-</section>
+<section class="hero"><h2>歡迎使用昱拓弱電公司系統 V5</h2><p>本版已加入：列印不顯示左上角標題、登入欄位預設空白、帳戶與權限管理、第二層按鈕式選單、各表單修改存檔，以及 LINE / Mail 快速分享。</p></section>
 <div class="cards">
   <div class="card"><h3>客戶資料</h3><p>建立、查詢、修改、刪除客戶資料。</p><a class="btn go" href="/clients.html">前往客戶資料</a></div>
-  <div class="card"><h3>新增報價單</h3><p>客戶名稱與統一編號顯示於同一區，估價事項可動態新增。</p><a class="btn go" href="/quote.html">前往報價單</a></div>
+  <div class="card"><h3>新增報價單</h3><p>公司名稱固定顯示，不需輸入。施工 / 查修說明預設空白。</p><a class="btn go" href="/quote.html">前往報價單</a></div>
   <div class="card"><h3>維護合約</h3><p>可建立與修改維護合約，並保留歷史紀錄。</p><a class="btn go" href="/contracts.html">前往維護合約</a></div>
   <div class="card"><h3>驗收單</h3><p>可建立與修改驗收單，並保留歷史紀錄。</p><a class="btn go" href="/acceptance.html">前往驗收單</a></div>
 </div>`);
