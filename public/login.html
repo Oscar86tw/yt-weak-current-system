@@ -1,1 +1,22 @@
-<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>登入｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"></head><body><div class="login-wrap"><div class="login-card"><h1>昱拓弱電</h1><p class="muted">公司系統登入</p><label>帳號</label><input id="username" value="adminoscar"><label>密碼</label><input id="password" type="password" value="admin0960770512"><div class="toolbar"><button id="loginBtn">登入</button></div><div class="error" id="loginError"></div></div></div><script src="/js/common.js"></script><script>if(localStorage.getItem('yt_token'))location.href='/index.html';loginBtn.addEventListener('click',async()=>{try{const d=await API.login(username.value.trim(),password.value);localStorage.setItem('yt_token',d.token);localStorage.setItem('yt_user',d.username);location.href='/index.html'}catch(e){loginError.textContent='帳號或密碼錯誤'}})</script></body></html>
+
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>登入｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"></head>
+<body>
+<div class="login-wrap"><div class="login-card">
+  <h1>昱拓弱電</h1><p class="muted">公司系統登入</p>
+  <label>帳號</label><input id="username" value="adminoscar">
+  <label>密碼</label><input id="password" type="password" value="admin0960770512">
+  <div class="toolbar"><button id="loginBtn">登入</button></div>
+  <div class="error" id="loginError"></div>
+</div></div>
+<script src="/js/common.js"></script>
+<script>
+if (localStorage.getItem('yt_token')) location.href='/index.html';
+loginBtn.addEventListener('click', async () => {
+  try{
+    const data = await API.login(username.value.trim(), password.value);
+    localStorage.setItem('yt_token', data.token);
+    localStorage.setItem('yt_user', data.username);
+    location.href='/index.html';
+  }catch(e){ loginError.textContent = '帳號或密碼錯誤'; }
+});
+</script></body></html>
