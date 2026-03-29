@@ -5,7 +5,9 @@ const bodyParser = require('body-parser');
 const app = express();
 app.use(bodyParser.json());
 app.use(express.static('public'));
-
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/public/index.html');
+});
 const db = new sqlite3.Database('./data.db');
 
 // 建表
