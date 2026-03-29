@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+  <button onclick="generateQuote()">產生正式報價單</button
 <head>
 <meta charset="UTF-8">
 <title>昱拓弱電系統</title>
@@ -18,6 +19,80 @@
 <ul id="list"></ul>
 
 <script>
+function generateQuote() {
+  const customerVal = customer.value;
+  const projectVal = project.value;
+  const amountVal = amount.value;
+  const dateVal = new Date().toLocaleDateString();
+
+  const html = `
+  <html>
+  <head>
+    <meta charset="UTF-8">
+    <title>報價單</title>
+    <style>
+      body { font-family: Microsoft JhengHei; padding: 40px; }
+      h1 { text-align: center; }
+      .section { margin-top: 20px; }
+      .title { font-weight: bold; margin-bottom: 5px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+      td, th { border: 1px solid #000; padding: 8px; }
+    </style>
+  </head>
+  <body>
+
+  <h1>昱拓弱電有限公司</h1>
+  <div style="text-align:center;">弱電系統維修｜監控｜門禁｜對講｜車道停管｜BA中央監控</div>
+  <hr>
+
+  <div class="section">
+    <div class="title">報價資訊</div>
+    客戶：${customerVal}<br>
+    工程：${projectVal}<br>
+    日期：${dateVal}
+  </div>
+
+  <div class="section">
+    <div class="title">工程內容</div>
+    <table>
+      <tr>
+        <th>項目</th>
+        <th>金額</th>
+      </tr>
+      <tr>
+        <td>${projectVal}</td>
+        <td>${amountVal}</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="title">施工說明</div>
+    1. 本工程依現場狀況施工<br>
+    2. 設備完成後進行基本測試<br>
+  </div>
+
+  <div class="section">
+    <div class="title">報價條款</div>
+    1. 本報價單有效期限15日<br>
+    2. 完工後次月5日前付款<br>
+    3. 若有新增項目另行報價<br>
+  </div>
+
+  <div class="section" style="margin-top:60px;">
+    客戶簽章：________________________<br><br>
+    昱拓弱電有限公司
+  </div>
+
+  </body>
+  </html>
+  `;
+
+  const newWindow = window.open();
+  newWindow.document.write(html);
+  newWindow.document.close();
+}
+  
 function save() {
   fetch('/api/quote', {
     method: 'POST',
