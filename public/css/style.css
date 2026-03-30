@@ -33,3 +33,15 @@ label{display:block;font-size:13px;margin-bottom:6px;color:#374151;font-weight:7
 .submenu3.hidden{display:none!important}
 .submenu3 .btn{background:#2563eb}
 .submenu3 .btn:hover{background:#1d4ed8}
+
+.menu .btn,.menu .parent,.submenu .btn,.submenu .parent,.submenu3 .btn,.submenu3 .parent{ text-align:left; }
+.submenu3{display:grid;gap:8px;margin:4px 0 14px 24px;padding-left:12px;border-left:3px solid #dbeafe}
+.submenu3.hidden{display:none!important}
+.submenu3 .btn,.submenu3 .parent{background:#2563eb}
+.submenu3 .btn:hover,.submenu3 .parent:hover{background:#1d4ed8}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:16px}
+.kpi{border:1px solid var(--line);border-radius:18px;padding:18px;background:linear-gradient(180deg,#fff,#f9fbff)}
+.kpi h3{margin:0 0 8px;font-size:15px;color:#475569}
+.kpi .big{font-size:30px;font-weight:700}
+.month-group{margin-bottom:18px}
+.month-title{font-size:18px;font-weight:700;margin:0 0 10px;padding:8px 12px;border-radius:12px;background:#eef2ff;color:#1e3a8a}

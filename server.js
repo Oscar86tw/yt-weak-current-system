@@ -18,48 +18,72 @@ const ADMIN_PASS = process.env.ADMIN_PASS || 'admin0960770512';
 const tokens = new Map();
 
 function hashPwd(s){ return crypto.createHash('sha256').update(String(s)).digest('hex'); }
-function ymdKey(){ const d = new Date(); return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`; }
+function todayKey(){ const d=new Date(); return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`; }
 
+async function getSettingsRow(){
+  const r = await pool.query(`SELECT * FROM system_settings WHERE id=1`);
+  return r.rows[0] || {};
+}
 async function nextDocNo(type){
-  const map = { quote:'YA', contract:'YB', acceptance:'YC', purchase:'PI', equipment:'EQ' };
-  const target = {
-    quote:{table:'quotes', col:'quote_no'},
-    contract:{table:'contracts', col:'doc_no'},
-    acceptance:{table:'acceptances', col:'doc_no'},
-    purchase:{table:'purchases', col:'purchase_no'}, equipment:{table:'equipment', col:'code'}
-  }[type] || {table:'quotes', col:'quote_no'};
-  const prefix = map[type] || 'YA';
-  const dateKey = ymdKey();
+  const s = await getSettingsRow();
+  const digits = Number(s.serial_digits || 3);
+  const dateKey = todayKey();
+
+  if(type === 'equipment_category'){
+    const r = await pool.query(`SELECT code FROM equipment_categories ORDER BY id DESC LIMIT 1`);
+    let n = 1;
+    if(r.rows.length && r.rows[0].code) n = Number(String(r.rows[0].code).replace(/\D/g,'')) + 1;
+    return String(n).padStart(4,'0');
+  }
+  if(type === 'equipment'){
+    const prefix = s.equipment_prefix || 'EQ';
+    const r = await pool.query(`SELECT code FROM equipment WHERE code LIKE $1 ORDER BY id DESC LIMIT 1`, [`${prefix}%`]);
+    let n = 1;
+    if(r.rows.length && r.rows[0].code) n = Number(String(r.rows[0].code).replace(/\D/g,'')) + 1;
+    return `${prefix}${String(n).padStart(4,'0')}`;
+  }
+
+  const prefixMap = {
+    quote: s.quote_prefix || 'YA',
+    contract: s.contract_prefix || 'YB',
+    acceptance: s.acceptance_prefix || 'YC',
+    purchase: s.purchase_prefix || 'PI'
+  };
+  const tableMap = {
+    quote:{table:'quotes',col:'quote_no'},
+    contract:{table:'contracts',col:'doc_no'},
+    acceptance:{table:'acceptances',col:'doc_no'},
+    purchase:{table:'purchases',col:'purchase_no'}
+  };
+  const prefix = prefixMap[type] || 'YA';
+  const target = tableMap[type] || tableMap.quote;
   const r = await pool.query(`SELECT ${target.col} AS doc_no FROM ${target.table} WHERE ${target.col} LIKE $1 ORDER BY id DESC LIMIT 1`, [`${prefix}${dateKey}%`]);
   let next = 1;
-  if(r.rows.length && r.rows[0].doc_no) next = Number(String(r.rows[0].doc_no).slice(-3)) + 1;
-  return `${prefix}${dateKey}${String(next).padStart(3,'0')}`;
-}
-
-async function ensureAdmin(){
-  const admin = await pool.query(`SELECT id FROM users WHERE username=$1`, [ADMIN_USER]);
-  if(!admin.rows.length){
-    await pool.query(`INSERT INTO users (username,password_hash,role) VALUES ($1,$2,'admin')`, [ADMIN_USER, hashPwd(ADMIN_PASS)]);
-  }
+  if(r.rows.length && r.rows[0].doc_no) next = Number(String(r.rows[0].doc_no).slice(-digits)) + 1;
+  return `${prefix}${dateKey}${String(next).padStart(digits,'0')}`;
 }
 
 async function initDb(){
   await pool.query(`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK (role IN ('admin','viewer')), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS clients (id SERIAL PRIMARY KEY, client_name TEXT NOT NULL, tax_id TEXT, contact_person TEXT, phone TEXT, address TEXT, job_title TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS suppliers (id SERIAL PRIMARY KEY, name TEXT NOT NULL, tax_id TEXT, contact_person TEXT, phone TEXT, address TEXT, bank_info TEXT, note TEXT, is_favorite BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS equipment_categories (id SERIAL PRIMARY KEY, code TEXT UNIQUE, name TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS equipment (id SERIAL PRIMARY KEY, code TEXT, category TEXT, name TEXT NOT NULL, spec TEXT, cost INTEGER DEFAULT 0, price INTEGER DEFAULT 0, profit INTEGER DEFAULT 0, note TEXT, link TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS quotes (id SERIAL PRIMARY KEY, quote_no TEXT, quote_date TEXT, client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL, project_name TEXT NOT NULL, subtotal INTEGER DEFAULT 0, tax INTEGER DEFAULT 0, total INTEGER DEFAULT 0, quote_desc TEXT, quote_terms TEXT, sign_status TEXT DEFAULT '尚未簽核', progress TEXT DEFAULT '待安排', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS quote_items (id SERIAL PRIMARY KEY, quote_id INTEGER REFERENCES quotes(id) ON DELETE CASCADE, item_order INTEGER, item_desc TEXT, qty INTEGER DEFAULT 0, unit_price INTEGER DEFAULT 0, item_total INTEGER DEFAULT 0)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS contracts (id SERIAL PRIMARY KEY, doc_no TEXT, doc_date TEXT, client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL, contract_name TEXT, scope TEXT, frequency TEXT, amount INTEGER DEFAULT 0, terms TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS acceptances (id SERIAL PRIMARY KEY, doc_no TEXT, doc_date TEXT, client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL, content TEXT, note TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS purchases (id SERIAL PRIMARY KEY, purchase_no TEXT, purchase_date TEXT, supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL, quote_id INTEGER REFERENCES quotes(id) ON DELETE SET NULL, site_name TEXT, memo TEXT, subtotal_amount INTEGER DEFAULT 0, tax_amount INTEGER DEFAULT 0, total_amount INTEGER DEFAULT 0, payment_status TEXT DEFAULT '未付款', payment_method TEXT DEFAULT '現金', due_date TEXT, paid_amount INTEGER DEFAULT 0, remaining_amount INTEGER DEFAULT 0, paid_date TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS system_settings (id INTEGER PRIMARY KEY DEFAULT 1, company_name TEXT, company_tag TEXT, company_phone TEXT, company_address TEXT, quote_prefix TEXT DEFAULT 'YA', contract_prefix TEXT DEFAULT 'YB', acceptance_prefix TEXT DEFAULT 'YC', purchase_prefix TEXT DEFAULT 'PI', serial_digits INTEGER DEFAULT 3, smtp_host TEXT, smtp_port TEXT, smtp_user TEXT, smtp_pass TEXT, smtp_secure BOOLEAN DEFAULT FALSE, mail_from TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-  await pool.query(`INSERT INTO system_settings (id, company_name, company_tag, company_phone, company_address) VALUES (1,'昱拓弱電有限公司','弱電系統維修｜監控｜門禁｜對講｜車道停管｜BA中央監控','0960-770-512','桃園市中壢區榮安一街490號13樓') ON CONFLICT (id) DO NOTHING`);
-  await pool.query(`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS equipment_prefix TEXT DEFAULT 'EQ'`);
-  await pool.query(`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS equipment_categories TEXT`);
-  await pool.query(`ALTER TABLE equipment ADD COLUMN IF NOT EXISTS category TEXT`);
   await pool.query(`CREATE TABLE IF NOT EXISTS purchase_items (id SERIAL PRIMARY KEY, purchase_id INTEGER REFERENCES purchases(id) ON DELETE CASCADE, item_order INTEGER, equipment_id INTEGER REFERENCES equipment(id) ON DELETE SET NULL, item_name TEXT, spec TEXT, qty INTEGER DEFAULT 0, unit TEXT, unit_cost INTEGER DEFAULT 0, item_total INTEGER DEFAULT 0)`);
-  await ensureAdmin();
+  await pool.query(`CREATE TABLE IF NOT EXISTS system_settings (id INTEGER PRIMARY KEY DEFAULT 1, company_name TEXT, company_tag TEXT, company_phone TEXT, company_address TEXT, quote_prefix TEXT DEFAULT 'YA', contract_prefix TEXT DEFAULT 'YB', acceptance_prefix TEXT DEFAULT 'YC', purchase_prefix TEXT DEFAULT 'PI', equipment_prefix TEXT DEFAULT 'EQ', serial_digits INTEGER DEFAULT 3, smtp_host TEXT, smtp_port TEXT, smtp_user TEXT, smtp_pass TEXT, smtp_secure BOOLEAN DEFAULT FALSE, mail_from TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+  await pool.query(`INSERT INTO system_settings (id, company_name, company_tag, company_phone, company_address, quote_prefix, contract_prefix, acceptance_prefix, purchase_prefix, equipment_prefix, serial_digits) VALUES (1,'昱拓弱電有限公司','弱電系統維修｜監控｜門禁｜對講｜車道停管｜BA中央監控','0960-770-512','桃園市中壢區榮安一街490號13樓','YA','YB','YC','PI','EQ',3) ON CONFLICT (id) DO NOTHING`);
+  await pool.query(`ALTER TABLE equipment ADD COLUMN IF NOT EXISTS category TEXT`);
+  await pool.query(`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS sign_status TEXT DEFAULT '尚未簽核'`);
+  await pool.query(`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS progress TEXT DEFAULT '待安排'`);
+  const admin = await pool.query(`SELECT id FROM users WHERE username=$1`, [ADMIN_USER]);
+  if(!admin.rows.length){
+    await pool.query(`INSERT INTO users (username,password_hash,role) VALUES ($1,$2,'admin')`, [ADMIN_USER, hashPwd(ADMIN_PASS)]);
+  }
 }
 
 function authRequired(req,res,next){
@@ -103,6 +127,33 @@ app.put('/api/users/:id', authRequired, adminRequired, async (req,res) => {
   res.json(r.rows[0]);
 });
 
+app.get('/api/system-settings', authRequired, async (req,res) => {
+  const r = await pool.query(`SELECT * FROM system_settings WHERE id=1`);
+  res.json(r.rows[0] || {});
+});
+app.put('/api/system-settings', authRequired, adminRequired, async (req,res) => {
+  const d=req.body;
+  const r = await pool.query(`UPDATE system_settings SET company_name=$1,company_tag=$2,company_phone=$3,company_address=$4,quote_prefix=$5,contract_prefix=$6,acceptance_prefix=$7,purchase_prefix=$8,equipment_prefix=$9,serial_digits=$10,smtp_host=$11,smtp_port=$12,smtp_user=$13,smtp_pass=$14,smtp_secure=$15,mail_from=$16,updated_at=CURRENT_TIMESTAMP WHERE id=1 RETURNING *`,
+    [d.company_name||'',d.company_tag||'',d.company_phone||'',d.company_address||'',d.quote_prefix||'YA',d.contract_prefix||'YB',d.acceptance_prefix||'YC',d.purchase_prefix||'PI',d.equipment_prefix||'EQ',Number(d.serial_digits||3),d.smtp_host||'',d.smtp_port||'',d.smtp_user||'',d.smtp_pass||'',!!d.smtp_secure,d.mail_from||'']);
+  res.json(r.rows[0]);
+});
+
+app.get('/api/equipment-categories', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM equipment_categories ORDER BY code ASC, id ASC`)).rows));
+app.post('/api/equipment-categories', authRequired, adminRequired, async (req,res) => {
+  const d=req.body;
+  const r=await pool.query(`INSERT INTO equipment_categories (code,name) VALUES ($1,$2) RETURNING *`, [d.code||'', d.name||'']);
+  res.json(r.rows[0]);
+});
+app.put('/api/equipment-categories/:id', authRequired, adminRequired, async (req,res) => {
+  const d=req.body;
+  const r=await pool.query(`UPDATE equipment_categories SET code=$1,name=$2 WHERE id=$3 RETURNING *`, [d.code||'', d.name||'', req.params.id]);
+  res.json(r.rows[0]);
+});
+app.delete('/api/equipment-categories/:id', authRequired, adminRequired, async (req,res) => {
+  await pool.query(`DELETE FROM equipment_categories WHERE id=$1`, [req.params.id]);
+  res.json({ ok:true });
+});
+
 app.get('/api/clients', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM clients ORDER BY id DESC`)).rows));
 app.post('/api/clients', authRequired, adminRequired, async (req,res) => {
   const d=req.body;
@@ -116,7 +167,7 @@ app.put('/api/clients/:id', authRequired, adminRequired, async (req,res) => {
 });
 app.delete('/api/clients/:id', authRequired, adminRequired, async (req,res) => { await pool.query(`DELETE FROM clients WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
 
-app.get('/api/suppliers', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM suppliers ORDER BY is_favorite DESC,id DESC`)).rows));
+app.get('/api/suppliers', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM suppliers ORDER BY id DESC`)).rows));
 app.post('/api/suppliers', authRequired, adminRequired, async (req,res) => {
   const d=req.body;
   const r = await pool.query(`INSERT INTO suppliers (name,tax_id,contact_person,phone,address,bank_info,note,is_favorite) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`, [d.name||'', d.tax_id||'', d.contact_person||'', d.phone||'', d.address||'', d.bank_info||'', d.note||'', !!d.is_favorite]);
@@ -144,7 +195,6 @@ app.delete('/api/equipment/:id', authRequired, adminRequired, async (req,res) =>
 
 app.get('/api/serials/next', authRequired, async (req,res) => res.json({ doc_no: await nextDocNo(req.query.type || 'quote') }));
 
-// Quotes
 app.get('/api/quotes', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM quotes ORDER BY id DESC`)).rows));
 app.get('/api/quotes/:id', authRequired, async (req,res) => {
   const q = await pool.query(`SELECT * FROM quotes WHERE id=$1`, [req.params.id]);
@@ -183,7 +233,6 @@ app.put('/api/quote-tracking/:id', authRequired, adminRequired, async (req,res) 
   res.json(r.rows[0]);
 });
 
-// Contracts
 app.get('/api/contracts', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM contracts ORDER BY id DESC`)).rows));
 app.get('/api/contracts/:id', authRequired, async (req,res) => { const r=await pool.query(`SELECT * FROM contracts WHERE id=$1`, [req.params.id]); if(!r.rows.length) return res.status(404).json({error:'not found'}); res.json(r.rows[0]); });
 app.post('/api/contracts', authRequired, adminRequired, async (req,res) => {
@@ -198,7 +247,6 @@ app.put('/api/contracts/:id', authRequired, adminRequired, async (req,res) => {
 });
 app.delete('/api/contracts/:id', authRequired, adminRequired, async (req,res) => { await pool.query(`DELETE FROM contracts WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
 
-// Acceptances
 app.get('/api/acceptances', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM acceptances ORDER BY id DESC`)).rows));
 app.get('/api/acceptances/:id', authRequired, async (req,res) => { const r=await pool.query(`SELECT * FROM acceptances WHERE id=$1`, [req.params.id]); if(!r.rows.length) return res.status(404).json({error:'not found'}); res.json(r.rows[0]); });
 app.post('/api/acceptances', authRequired, adminRequired, async (req,res) => {
@@ -213,7 +261,6 @@ app.put('/api/acceptances/:id', authRequired, adminRequired, async (req,res) => 
 });
 app.delete('/api/acceptances/:id', authRequired, adminRequired, async (req,res) => { await pool.query(`DELETE FROM acceptances WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
 
-// Purchases
 app.get('/api/purchases', authRequired, async (req,res) => {
   const r = await pool.query(`SELECT p.*, s.name AS supplier_name, q.quote_no FROM purchases p LEFT JOIN suppliers s ON s.id=p.supplier_id LEFT JOIN quotes q ON q.id=p.quote_id ORDER BY p.id DESC`);
   res.json(r.rows);
@@ -253,20 +300,35 @@ app.post('/api/purchases', authRequired, adminRequired, async (req,res) => { con
 app.put('/api/purchases/:id', authRequired, adminRequired, async (req,res) => { const p = await savePurchase(req.params.id, req.body); res.json({ ok:true, id:p.id }); });
 app.delete('/api/purchases/:id', authRequired, adminRequired, async (req,res) => { await pool.query(`DELETE FROM purchases WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
 app.get('/api/payables', authRequired, async (req,res) => {
-  const r = await pool.query(`SELECT p.id,p.purchase_no,p.payment_status,p.payment_method,p.due_date,p.paid_date,p.total_amount,p.paid_amount,p.remaining_amount,s.name AS supplier_name FROM purchases p LEFT JOIN suppliers s ON s.id=p.supplier_id ORDER BY COALESCE(p.due_date,''), p.id DESC`);
+  const r = await pool.query(`SELECT p.id,p.purchase_no,p.payment_status,p.payment_method,p.due_date,p.paid_date,p.total_amount,p.paid_amount,p.remaining_amount,s.name AS supplier_name,p.created_at FROM purchases p LEFT JOIN suppliers s ON s.id=p.supplier_id ORDER BY COALESCE(p.due_date,''), p.id DESC`);
   res.json(r.rows);
 });
 
-
-app.get('/api/system-settings', authRequired, async (req,res) => {
-  const r = await pool.query(`SELECT * FROM system_settings WHERE id=1`);
-  res.json(r.rows[0] || {});
-});
-app.put('/api/system-settings', authRequired, adminRequired, async (req,res) => {
-  const d=req.body;
-  const r = await pool.query(`UPDATE system_settings SET company_name=$1,company_tag=$2,company_phone=$3,company_address=$4,quote_prefix=$5,contract_prefix=$6,acceptance_prefix=$7,purchase_prefix=$8,equipment_prefix=$9,serial_digits=$10,equipment_categories=$11,smtp_host=$12,smtp_port=$13,smtp_user=$14,smtp_pass=$15,smtp_secure=$16,mail_from=$17,updated_at=CURRENT_TIMESTAMP WHERE id=1 RETURNING *`,
-    [d.company_name||'',d.company_tag||'',d.company_phone||'',d.company_address||'',d.quote_prefix||'YA',d.contract_prefix||'YB',d.acceptance_prefix||'YC',d.purchase_prefix||'PI',d.equipment_prefix||'EQ',Number(d.serial_digits||3),d.equipment_categories||'',d.smtp_host||'',d.smtp_port||'',d.smtp_user||'',d.smtp_pass||'',!!d.smtp_secure,d.mail_from||'']);
-  res.json(r.rows[0]);
+app.get('/api/analysis/:type', authRequired, async (req,res) => {
+  const type = req.params.type;
+  let query = '', totalField = undefined;
+  if(type === 'suppliers'){
+    query = `SELECT * FROM suppliers WHERE DATE(created_at)=CURRENT_DATE ORDER BY created_at DESC`;
+  } else if(type === 'equipment'){
+    query = `SELECT * FROM equipment WHERE DATE(created_at)=CURRENT_DATE ORDER BY created_at DESC`;
+  } else if(type === 'purchases'){
+    query = `SELECT p.*, s.name AS supplier_name FROM purchases p LEFT JOIN suppliers s ON s.id=p.supplier_id WHERE DATE(p.created_at)=CURRENT_DATE ORDER BY p.created_at DESC`;
+    totalField = 'total_amount';
+  } else if(type === 'quotes'){
+    query = `SELECT * FROM quotes WHERE DATE(created_at)=CURRENT_DATE ORDER BY created_at DESC`;
+    totalField = 'total';
+  } else if(type === 'contracts'){
+    query = `SELECT * FROM contracts WHERE DATE(created_at)=CURRENT_DATE ORDER BY created_at DESC`;
+    totalField = 'amount';
+  } else if(type === 'acceptances'){
+    query = `SELECT * FROM acceptances WHERE DATE(created_at)=CURRENT_DATE ORDER BY created_at DESC`;
+  } else {
+    return res.status(400).json({ error:'unknown type' });
+  }
+  const rows = (await pool.query(query)).rows;
+  let total_amount = undefined;
+  if(totalField) total_amount = rows.reduce((s,r)=>s + Number(r[totalField] || 0), 0);
+  res.json({ count: rows.length, total_amount, rows });
 });
 
 app.get('/', (req,res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));

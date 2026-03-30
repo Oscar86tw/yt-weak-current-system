@@ -1,0 +1,5 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>進貨單分析</title><link rel="stylesheet" href="/css/style.css"></head><body><div id="app"></div><script src="/js/common.js"></script><script>
+document.getElementById('app').innerHTML=shell('進貨單分析',`<div id="view"></div>`);
+async function load(){const d=await API.getAnalysis('purchases'); view.innerHTML=`<div class="kpi-grid"><div class="kpi"><h3>今日新增筆數</h3><div class="big">${d.count||0}</div></div>${d.total_amount!==undefined?`<div class="kpi"><h3>今日金額合計</h3><div class="big">NT$ ${money(d.total_amount||0)}</div></div>`:''}</div><div class="list-panel"><div class="month-title">今日明細</div>${(d.rows||[]).length?(d.rows||[]).map(r=>`<div class="list-item"><strong>${r.purchase_no}</strong><div>供應商：${r.supplier_name||'—'}　總額：NT$ ${money(r.total_amount||0)}</div><div>建立時間：${(r.created_at||'').replace('T',' ').slice(0,16)}</div></div>`).join(''):'<div class="muted">今日尚無新增資料</div>'}</div>`;}
+load();
+</script></body></html>
