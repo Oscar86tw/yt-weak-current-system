@@ -1,14 +1,111 @@
 <!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>報價單｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"></head><body><div id="app"></div><script src="/js/common.js"></script><script>
-document.getElementById('app').innerHTML=shell('新增報價單',`<div class="split"><div class="form-panel"><h2 style="margin-top:0;">報價單表單</h2><input type="hidden" id="docId"><div class="row"><div><label>文件編號</label><input id="docNo" readonly></div><div><label>日期</label><input id="docDate"></div></div><label>客戶</label><select id="clientSelect"></select><label>工程名稱</label><input id="projectName"><div class="toolbar"><button id="addItemBtn">＋新增項目</button></div><div id="itemWrap"></div><label>施工 / 查修說明</label><textarea id="quoteDesc"></textarea><label>報價條款</label><textarea id="quoteTerms">1. 本報價單有效期限為15日。\n2. 完工驗收後請於次月5日前付款。\n3. 如有新增或變更項目，費用另行報價。</textarea><div class="toolbar"><button id="saveBtn">存檔</button></div></div><div class="preview-panel" id="preview"></div></div>`);
-let clients=[],items=[];
+document.getElementById('app').innerHTML=shell('資料建立 / 報價單 / 新增',`<div class="split"><div class="form-panel"><h2 style="margin-top:0;">報價單表單</h2><input type="hidden" id="docId"><div class="row"><div><label>文件編號</label><input id="docNo" readonly></div><div><label>日期</label><input id="docDate"></div></div><label>客戶</label><select id="clientSelect"></select><label>工程名稱</label><input id="projectName"><div class="toolbar"><button id="addItemBtn">＋新增項目</button></div><div id="itemWrap"></div><label>施工 / 查修說明</label><textarea id="quoteDesc"></textarea><label>報價條款</label><textarea id="quoteTerms">1. 本報價單有效期限為15日。\n2. 完工驗收後請於次月5日前付款。\n3. 如有新增或變更項目，費用另行報價。</textarea><div class="toolbar"><button id="saveBtn">存檔</button></div></div><div class="preview-panel" id="preview"></div></div>`);
+let clients=[],items=[],categories=[],equipment=[];
+
 function renderClientOptions(){clientSelect.innerHTML='<option value="">請選擇客戶</option>'+clients.map(c=>`<option value="${c.id}">${c.client_name}</option>`).join('')}
-function addItem(){items.push({item_desc:'',qty:'1',unit_price:'0'});renderItems();renderDoc()}
+function categoryOptions(selected=''){return '<option value="">請選擇設備類別</option>'+categories.map(c=>`<option value="${c.name}" ${selected===c.name?'selected':''}>${c.code}｜${c.name}</option>`).join('')}
+function equipmentOptions(categoryName, selected=''){
+  const list = equipment.filter(e=>!categoryName || e.category===categoryName);
+  return '<option value="">請選擇設備名稱</option>'+list.map(e=>`<option value="${e.id}" ${String(selected)===String(e.id)?'selected':''}>${e.name}${e.spec?`｜${e.spec}`:''}</option>`).join('');
+}
+function addItem(){items.push({category:'',equipment_id:'',item_desc:'',spec:'',qty:'1',unit_price:'0'});renderItems();renderDoc()}
 function removeItem(i){items.splice(i,1);renderItems();renderDoc()}
-function updateItem(i,k,v){items[i][k]=v;renderDoc()}
+function updateItem(i,k,v){
+  items[i][k]=v;
+  if(k==='category'){
+    items[i].equipment_id='';
+    items[i].spec='';
+    items[i].unit_price='0';
+  }
+  if(k==='equipment_id'){
+    const e=equipment.find(x=>String(x.id)===String(v));
+    if(e){
+      items[i].item_desc=e.category||items[i].category||'';
+      items[i].category=e.category||items[i].category||'';
+      items[i].spec=e.name||'';
+      items[i].unit_price=String(e.price||0);
+    }
+  }
+  renderItems();
+  renderDoc();
+}
 function rowTotal(r){return Number(r.qty||0)*Number(r.unit_price||0)}
-function renderItems(){itemWrap.innerHTML=items.map((r,i)=>`<div class="quote-item-card"><div class="toolbar" style="justify-content:space-between;align-items:center;"><strong>項目 ${i+1}</strong><button class="danger" onclick="removeItem(${i})">刪除</button></div><label>估價事項</label><textarea oninput="updateItem(${i},'item_desc',this.value)">${r.item_desc||''}</textarea><div class="row"><div><label>數量</label><input value="${r.qty||''}" oninput="updateItem(${i},'qty',this.value)"></div><div><label>單價</label><input value="${r.unit_price||''}" oninput="updateItem(${i},'unit_price',this.value)"></div></div><div>小計：NT$ ${money(rowTotal(r))}</div></div>`).join('')||'<div class="muted">尚未新增項目。</div>'}
+function renderItems(){
+  itemWrap.innerHTML=items.map((r,i)=>`
+    <div class="quote-item-card">
+      <div class="toolbar" style="justify-content:space-between;align-items:center;">
+        <strong>項目 ${i+1}</strong>
+        <button class="danger" onclick="removeItem(${i})">刪除</button>
+      </div>
+      <div class="row">
+        <div>
+          <label>估價事項</label>
+          <select onchange="updateItem(${i},'category',this.value)">${categoryOptions(r.category||'')}</select>
+        </div>
+        <div>
+          <label>規格</label>
+          <select onchange="updateItem(${i},'equipment_id',this.value)">${equipmentOptions(r.category||'', r.equipment_id||'')}</select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>數量</label>
+          <input value="${r.qty||''}" oninput="updateItem(${i},'qty',this.value)">
+        </div>
+        <div>
+          <label>單價</label>
+          <input value="${r.unit_price||''}" oninput="updateItem(${i},'unit_price',this.value)">
+        </div>
+      </div>
+      <div class="muted">設備名稱：${r.spec||'—'}</div>
+      <div>小計：NT$ ${money(rowTotal(r))}</div>
+    </div>`).join('')||'<div class="muted">尚未新增項目。</div>';
+}
 function totals(){const subtotal=items.reduce((s,r)=>s+rowTotal(r),0),tax=Math.round(subtotal*0.05),total=subtotal+tax;return{subtotal,tax,total}}
-function renderDoc(){const c=clients.find(x=>String(x.id)===String(clientSelect.value));const t=totals();preview.innerHTML=`<div class="doc-head"><div><h2>${COMPANY.name}</h2><div class="doc-sub">${COMPANY.tag}<br>電話：${COMPANY.phone}<br>地址：${COMPANY.address}</div></div><div class="doc-sub" style="text-align:right;"><strong style="font-size:20px;color:#111827;">工程報價單</strong><br><br>單號：${docNo.value||'＿＿＿＿'}<br>日期：${docDate.value||'＿＿＿＿'}<br>客戶：${c?.client_name||'＿＿＿＿'}<br>統編：${c?.tax_id||'—'}</div></div><div class="block"><h3>工程名稱</h3><p>${projectName.value||'—'}</p></div><div class="block"><h3>工程內容與費用</h3><table class="table"><thead><tr><th>項次</th><th>估價事項</th><th>數量</th><th>單價</th><th>小計</th></tr></thead><tbody>${items.map((r,i)=>`<tr><td>${i+1}</td><td>${nl2br(r.item_desc)}</td><td>${r.qty||''}</td><td>NT$ ${money(r.unit_price||0)}</td><td>NT$ ${money(rowTotal(r))}</td></tr>`).join('')||'<tr><td colspan="5">尚無資料</td></tr>'}</tbody></table><p style="text-align:right;line-height:1.9;">小計：NT$ ${money(t.subtotal)}<br>營業稅：NT$ ${money(t.tax)}<br><strong>合計：NT$ ${money(t.total)}</strong></p></div><div class="block"><h3>施工 / 查修說明</h3><p>${nl2br(quoteDesc.value)||'—'}</p></div><div class="block"><h3>報價條款</h3><ol>${splitLines(quoteTerms.value).map(x=>`<li>${x.replace(/^\d+\./,'').trim()}</li>`).join('')}</ol></div>`}
-async function saveDoc(){const p={quote_no:docNo.value,quote_date:docDate.value,client_id:clientSelect.value||null,project_name:projectName.value||'',quote_desc:quoteDesc.value||'',quote_terms:quoteTerms.value||'',items:items.map((r,i)=>({item_order:i+1,item_desc:r.item_desc||'',qty:Number(r.qty||0),unit_price:Number(r.unit_price||0)}))};if(!p.client_id)return alert('請先選擇客戶');if(!p.project_name)return alert('請輸入工程名稱');if(docId.value) await API.updateQuote(docId.value,p); else await API.createQuote(p); alert('報價單已存檔')}
-async function init(){clients=await API.getClients();renderClientOptions();const next=await API.nextNo('quote');docNo.value=next.doc_no;addItem();['docDate','projectName','quoteDesc','quoteTerms'].forEach(id=>document.getElementById(id).addEventListener('input',renderDoc));clientSelect.onchange=renderDoc;addItemBtn.onclick=addItem;saveBtn.onclick=saveDoc;const id=qs('id');if(id){docId.value=id;const d=await API.getQuote(id);docNo.value=d.quote_no||'';docDate.value=d.quote_date||'';clientSelect.value=d.client_id?String(d.client_id):'';projectName.value=d.project_name||'';quoteDesc.value=d.quote_desc||'';quoteTerms.value=d.quote_terms||'';items=(d.items||[]).map(x=>({item_desc:x.item_desc||'',qty:x.qty||'',unit_price:x.unit_price||''}));renderItems()}renderDoc()}init();
+function renderDoc(){
+  const c=clients.find(x=>String(x.id)===String(clientSelect.value));
+  const t=totals();
+  preview.innerHTML=`<div class="doc-head"><div><h2>${COMPANY.name}</h2><div class="doc-sub">${COMPANY.tag}<br>電話：${COMPANY.phone}<br>地址：${COMPANY.address}</div></div><div class="doc-sub" style="text-align:right;"><strong style="font-size:20px;color:#111827;">工程報價單</strong><br><br>單號：${docNo.value||'＿＿＿＿'}<br>日期：${docDate.value||'＿＿＿＿'}<br>客戶：${c?.client_name||'＿＿＿＿'}<br>統編：${c?.tax_id||'—'}</div></div><div class="block"><h3>工程名稱</h3><p>${projectName.value||'—'}</p></div><div class="block"><h3>工程內容與費用</h3><table class="table"><thead><tr><th>項次</th><th>估價事項</th><th>規格</th><th>數量</th><th>單價</th><th>小計</th></tr></thead><tbody>${items.map((r,i)=>`<tr><td>${i+1}</td><td>${r.category||''}</td><td>${r.spec||''}</td><td>${r.qty||''}</td><td>NT$ ${money(r.unit_price||0)}</td><td>NT$ ${money(rowTotal(r))}</td></tr>`).join('')||'<tr><td colspan="6">尚無資料</td></tr>'}</tbody></table><p style="text-align:right;line-height:1.9;">小計：NT$ ${money(t.subtotal)}<br>營業稅：NT$ ${money(t.tax)}<br><strong>合計：NT$ ${money(t.total)}</strong></p></div><div class="block"><h3>施工 / 查修說明</h3><p>${nl2br(quoteDesc.value)||'—'}</p></div><div class="block"><h3>報價條款</h3><ol>${splitLines(quoteTerms.value).map(x=>`<li>${x.replace(/^\d+\./,'').trim()}</li>`).join('')}</ol></div>`;
+}
+async function saveDoc(){
+  const p={quote_no:docNo.value,quote_date:docDate.value,client_id:clientSelect.value||null,project_name:projectName.value||'',quote_desc:quoteDesc.value||'',quote_terms:quoteTerms.value||'',items:items.map((r,i)=>({item_order:i+1,item_desc:r.category||'',spec:r.spec||'',equipment_id:r.equipment_id||null,qty:Number(r.qty||0),unit_price:Number(r.unit_price||0)}))};
+  if(!p.client_id)return alert('請先選擇客戶');
+  if(!p.project_name)return alert('請輸入工程名稱');
+  if(docId.value) await API.updateQuote(docId.value,p); else await API.createQuote(p);
+  alert('報價單已存檔');
+}
+async function init(){
+  clients=await API.getClients();
+  categories=await API.getEquipmentCategories();
+  equipment=await API.listEquipment();
+  renderClientOptions();
+  const next=await API.nextNo('quote');
+  docNo.value=next.doc_no;
+  addItem();
+  ['docDate','projectName','quoteDesc','quoteTerms'].forEach(id=>document.getElementById(id).addEventListener('input',renderDoc));
+  clientSelect.onchange=renderDoc;
+  addItemBtn.onclick=addItem;
+  saveBtn.onclick=saveDoc;
+  const id=qs('id');
+  if(id){
+    docId.value=id;
+    const d=await API.getQuote(id);
+    docNo.value=d.quote_no||'';
+    docDate.value=d.quote_date||'';
+    clientSelect.value=d.client_id?String(d.client_id):'';
+    projectName.value=d.project_name||'';
+    quoteDesc.value=d.quote_desc||'';
+    quoteTerms.value=d.quote_terms||'';
+    items=(d.items||[]).map(x=>({
+      category:x.item_desc||'',
+      spec:x.spec||'',
+      equipment_id:x.equipment_id||'',
+      qty:x.qty||'',
+      unit_price:x.unit_price||'0'
+    }));
+    renderItems();
+  }
+  renderDoc();
+}
+init();
 </script></body></html>

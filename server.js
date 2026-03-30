@@ -70,7 +70,7 @@ async function initDb(){
   await pool.query(`CREATE TABLE IF NOT EXISTS equipment_categories (id SERIAL PRIMARY KEY, code TEXT UNIQUE, name TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS equipment (id SERIAL PRIMARY KEY, code TEXT, category TEXT, name TEXT NOT NULL, spec TEXT, cost INTEGER DEFAULT 0, price INTEGER DEFAULT 0, profit INTEGER DEFAULT 0, note TEXT, link TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS quotes (id SERIAL PRIMARY KEY, quote_no TEXT, quote_date TEXT, client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL, project_name TEXT NOT NULL, subtotal INTEGER DEFAULT 0, tax INTEGER DEFAULT 0, total INTEGER DEFAULT 0, quote_desc TEXT, quote_terms TEXT, sign_status TEXT DEFAULT '尚未簽核', progress TEXT DEFAULT '待安排', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS quote_items (id SERIAL PRIMARY KEY, quote_id INTEGER REFERENCES quotes(id) ON DELETE CASCADE, item_order INTEGER, item_desc TEXT, qty INTEGER DEFAULT 0, unit_price INTEGER DEFAULT 0, item_total INTEGER DEFAULT 0)`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS quote_items (id SERIAL PRIMARY KEY, quote_id INTEGER REFERENCES quotes(id) ON DELETE CASCADE, item_order INTEGER, item_desc TEXT, spec TEXT, equipment_id INTEGER REFERENCES equipment(id) ON DELETE SET NULL, qty INTEGER DEFAULT 0, unit_price INTEGER DEFAULT 0, item_total INTEGER DEFAULT 0)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS contracts (id SERIAL PRIMARY KEY, doc_no TEXT, doc_date TEXT, client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL, contract_name TEXT, scope TEXT, frequency TEXT, amount INTEGER DEFAULT 0, terms TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS acceptances (id SERIAL PRIMARY KEY, doc_no TEXT, doc_date TEXT, client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL, content TEXT, note TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS purchases (id SERIAL PRIMARY KEY, purchase_no TEXT, purchase_date TEXT, supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL, quote_id INTEGER REFERENCES quotes(id) ON DELETE SET NULL, site_name TEXT, memo TEXT, subtotal_amount INTEGER DEFAULT 0, tax_amount INTEGER DEFAULT 0, total_amount INTEGER DEFAULT 0, payment_status TEXT DEFAULT '未付款', payment_method TEXT DEFAULT '現金', due_date TEXT, paid_amount INTEGER DEFAULT 0, remaining_amount INTEGER DEFAULT 0, paid_date TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
@@ -80,6 +80,8 @@ async function initDb(){
   await pool.query(`ALTER TABLE equipment ADD COLUMN IF NOT EXISTS category TEXT`);
   await pool.query(`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS sign_status TEXT DEFAULT '尚未簽核'`);
   await pool.query(`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS progress TEXT DEFAULT '待安排'`);
+  await pool.query(`ALTER TABLE quote_items ADD COLUMN IF NOT EXISTS spec TEXT`);
+  await pool.query(`ALTER TABLE quote_items ADD COLUMN IF NOT EXISTS equipment_id INTEGER REFERENCES equipment(id) ON DELETE SET NULL`);
   const admin = await pool.query(`SELECT id FROM users WHERE username=$1`, [ADMIN_USER]);
   if(!admin.rows.length){
     await pool.query(`INSERT INTO users (username,password_hash,role) VALUES ($1,$2,'admin')`, [ADMIN_USER, hashPwd(ADMIN_PASS)]);
@@ -218,7 +220,7 @@ async function saveQuote(id, body){
   }
   for(const item of items){
     const qty=Number(item.qty||0), unitPrice=Number(item.unit_price||0), itemTotal=qty*unitPrice;
-    await pool.query(`INSERT INTO quote_items (quote_id,item_order,item_desc,qty,unit_price,item_total) VALUES ($1,$2,$3,$4,$5,$6)`, [q.id, item.item_order||0, item.item_desc||'', qty, unitPrice, itemTotal]);
+    await pool.query(`INSERT INTO quote_items (quote_id,item_order,item_desc,spec,equipment_id,qty,unit_price,item_total) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [q.id, item.item_order||0, item.item_desc||'', item.spec||'', item.equipment_id||null, qty, unitPrice, itemTotal]);
   }
   return q;
 }
