@@ -1,4 +1,52 @@
 <!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>報價追蹤｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"></head><body><div id="app"></div><script src="/js/common.js"></script><script>
-document.getElementById('app').innerHTML=shell('報價追蹤',`<div class="list-panel"><div class="toolbar"><input id="search" placeholder="輸入單號 / 工程查詢"></div><div id="list"></div></div>`);
-let rows=[];async function load(){rows=await API.listQuoteTracking();render()}async function updateRow(id){const sign_status=document.getElementById('sign_'+id).value;const progress=document.getElementById('prog_'+id).value;await API.updateQuoteTracking(id,{sign_status,progress});load()}function render(){const k=search.value.trim().toLowerCase();const result=rows.filter(r=>`${r.quote_no||''} ${r.project_name||''}`.toLowerCase().includes(k)||!k);list.innerHTML=result.map(r=>`<div class="list-item"><strong>${r.quote_no||'未編號'}｜${r.project_name||'未命名工程'}</strong><div>日期：${r.quote_date||'—'}　合計：NT$ ${money(r.total||0)}</div><div class="row"><div><label>簽核狀況</label><select id="sign_${r.id}"><option value="尚未簽核" ${r.sign_status==='尚未簽核'?'selected':''}>尚未簽核</option><option value="同意施作" ${r.sign_status==='同意施作'?'selected':''}>同意施作</option><option value="先換待核" ${r.sign_status==='先換待核'?'selected':''}>先換待核</option></select></div><div><label>進度</label><select id="prog_${r.id}"><option value="待安排" ${r.progress==='待安排'?'selected':''}>待安排</option><option value="進行中" ${r.progress==='進行中'?'selected':''}>進行中</option><option value="已完成" ${r.progress==='已完成'?'selected':''}>已完成</option></select></div></div><div class="toolbar"><button onclick="updateRow(${r.id})">更新追蹤</button><a class="btn light" href="/quote.html?id=${r.id}">查看報價單</a></div></div>`).join('')||'<div class="muted">尚無資料</div>'}search.oninput=render;load();
+document.getElementById('app').innerHTML=shell('資料建立 / 報價單 / 追蹤',`<div class="list-panel"><div class="toolbar"><input id="search" placeholder="輸入單號 / 工程查詢"></div><div id="list"></div></div>`);
+let rows=[];
+function groupByMonth(arr){ const g={}; arr.forEach(r=>{const d=((r.quote_date||'').replace(/\//g,'-').slice(0,7))||'未分類'; (g[d]||(g[d]=[])).push(r);}); return g; }
+async function load(){ try{ rows=await API.listQuoteTracking(); render(); } catch(err){ alert('載入報價追蹤失敗：'+err.message); } }
+async function saveRow(id){
+  try{
+    const sign_status=document.getElementById('sign_'+id).value;
+    const progress=document.getElementById('prog_'+id).value;
+    await API.updateQuoteTracking(id,{sign_status,progress});
+    await load();
+    alert('報價追蹤已更新');
+  }catch(err){
+    alert('更新失敗：'+err.message);
+  }
+}
+function render(){
+  const k=(search.value||'').trim().toLowerCase();
+  const result=rows.filter(r=>`${r.quote_no||''} ${r.project_name||''}`.toLowerCase().includes(k)||!k);
+  if(!result.length){ list.innerHTML='<div class="muted">尚無資料</div>'; return; }
+  const groups=groupByMonth(result);
+  list.innerHTML=Object.keys(groups).sort().reverse().map(month=>`<div class="month-group"><div class="month-title">${month}</div>${groups[month].map(r=>`
+    <div class="list-item">
+      <strong>${r.quote_no||'未編號'}｜${r.project_name||'未命名工程'}</strong>
+      <div>日期：${r.quote_date||'—'}　合計：NT$ ${money(r.total||0)}</div>
+      <div class="row">
+        <div>
+          <label>簽核狀況</label>
+          <select id="sign_${r.id}">
+            <option value="尚未簽核" ${r.sign_status==='尚未簽核'?'selected':''}>尚未簽核</option>
+            <option value="同意施作" ${r.sign_status==='同意施作'?'selected':''}>同意施作</option>
+            <option value="先換待核" ${r.sign_status==='先換待核'?'selected':''}>先換待核</option>
+          </select>
+        </div>
+        <div>
+          <label>進度</label>
+          <select id="prog_${r.id}">
+            <option value="待安排" ${r.progress==='待安排'?'selected':''}>待安排</option>
+            <option value="進行中" ${r.progress==='進行中'?'selected':''}>進行中</option>
+            <option value="已完成" ${r.progress==='已完成'?'selected':''}>已完成</option>
+          </select>
+        </div>
+      </div>
+      <div class="toolbar">
+        <button onclick="saveRow(${r.id})">更新追蹤</button>
+        <a class="btn light" href="/quote.html?id=${r.id}">查看報價單</a>
+      </div>
+    </div>`).join('')}</div>`).join('');
+}
+search.oninput=render;
+load();
 </script></body></html>
