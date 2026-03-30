@@ -62,7 +62,7 @@ function active(path){return location.pathname.endsWith(path);}
 function toggleMenu(id){const el=document.getElementById(id);if(el)el.classList.toggle('hidden');}
 function autoOpenByPath(){
   const p=location.pathname;
-  if(['settings.html','users.html','equipment_categories.html'].some(x=>p.endsWith(x))) document.getElementById('menu-system')?.classList.remove('hidden');
+  if(['settings.html','users.html','equipment_categories.html','data_io.html'].some(x=>p.endsWith(x))) document.getElementById('menu-system')?.classList.remove('hidden');
   if(['clients.html'].some(x=>p.endsWith(x))) document.getElementById('menu-client')?.classList.remove('hidden');
   if(['suppliers.html','equipment.html','purchase.html','quote.html','contracts.html','acceptance.html','supplier_analysis.html','equipment_analysis.html','purchase_analysis.html','quote_analysis.html','contract_analysis.html','acceptance_analysis.html','purchases.html','quotes.html','contracts_history.html','acceptances_history.html','quote_tracking.html','payables.html'].some(x=>p.endsWith(x))) document.getElementById('menu-build')?.classList.remove('hidden');
   const groups=[
@@ -84,7 +84,7 @@ function shell(title,content){
   <div id="menu-system" class="submenu hidden">
     <a class="btn ${active('settings.html')?'active':''}" href="/settings.html">公司基本設定</a>
     ${API.role()==='admin'?`<a class="btn ${active('users.html')?'active':''}" href="/users.html">帳戶管理</a>`:''}
-    <a class="btn ${active('equipment_categories.html')?'active':''}" href="/equipment_categories.html">設備類別</a>
+    <a class="btn ${active('equipment_categories.html')?'active':''}" href="/equipment_categories.html">設備類別</a><a class="btn ${active('data_io.html')?'active':''}" href="/data_io.html">資料匯入匯出</a>
   </div>
   <button class="btn parent" onclick="toggleMenu('menu-client')">客戶資料</button>
   <div id="menu-client" class="submenu hidden">
@@ -162,3 +162,17 @@ window.API.purchaseSummary = async ()=> (await API.request('/api/purchases/summa
 window.API.purchaseOverdue = async ()=> (await API.request('/api/purchases/overdue')).json();
 window.API.searchEquipment = async (params)=> (await API.request('/api/equipment/search?'+new URLSearchParams(params))).json();
 window.API.equipmentSummary = async ()=> (await API.request('/api/equipment/summary')).json();
+
+const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+let idleTimer = null;
+function resetIdleTimer(){
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    alert('已超過 15 分鐘未操作，系統將自動登出。');
+    logout();
+  }, IDLE_TIMEOUT_MS);
+}
+['click','keydown','mousemove','scroll','touchstart'].forEach(evt=>{
+  document.addEventListener(evt, ()=>{ if(localStorage.getItem('yt_token')) resetIdleTimer(); }, {passive:true});
+});
+document.addEventListener('DOMContentLoaded', ()=>{ if(localStorage.getItem('yt_token')) resetIdleTimer(); });

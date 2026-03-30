@@ -1,6 +1,6 @@
 {
-  "name": "yt-weak-current-v3-6-excel-pdf-line",
-  "version": "3.7.0",
+  "name": "yt-weak-current-v3-8-stability-rebuild",
+  "version": "3.8.0",
   "main": "server.js",
   "license": "UNLICENSED",
   "scripts": {
@@ -11,6 +11,7 @@
     "pg": "^8.13.1",
     "multer": "^1.4.5-lts.1",
     "xlsx": "^0.18.5",
-    "pdfkit": "^0.15.0"
+    "pdfkit": "^0.15.0",
+    "jsonwebtoken": "^9.0.2"
   }
 }

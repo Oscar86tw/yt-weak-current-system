@@ -6,6 +6,7 @@ const { Pool } = require('pg');
 const multer = require('multer');
 const XLSX = require('xlsx');
 const PDFDocument = require('pdfkit');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -19,7 +20,7 @@ const pool = new Pool({
 
 const ADMIN_USER = process.env.ADMIN_USER || 'adminoscar';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'admin0960770512';
-const tokens = new Map();
+const JWT_SECRET = process.env.JWT_SECRET || 'yt-weak-current-jwt-secret';
 
 function hashPwd(s){ return crypto.createHash('sha256').update(String(s)).digest('hex'); }
 function todayKey(){ const d=new Date(); return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`; }
@@ -67,25 +68,191 @@ async function nextDocNo(type){
   return `${prefix}${dateKey}${String(next).padStart(digits,'0')}`;
 }
 
+
 async function initDb(){
-  await pool.query(`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK (role IN ('admin','viewer')), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS clients (id SERIAL PRIMARY KEY, client_name TEXT NOT NULL, tax_id TEXT, contact_person TEXT, phone TEXT, address TEXT, job_title TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS suppliers (id SERIAL PRIMARY KEY, name TEXT NOT NULL, tax_id TEXT, contact_person TEXT, phone TEXT, address TEXT, bank_info TEXT, note TEXT, is_favorite BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS equipment_categories (id SERIAL PRIMARY KEY, code TEXT UNIQUE, name TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS equipment (id SERIAL PRIMARY KEY, code TEXT, category TEXT, name TEXT NOT NULL, spec TEXT, cost INTEGER DEFAULT 0, price INTEGER DEFAULT 0, profit INTEGER DEFAULT 0, note TEXT, link TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS quotes (id SERIAL PRIMARY KEY, quote_no TEXT, quote_date TEXT, client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL, project_name TEXT NOT NULL, subtotal INTEGER DEFAULT 0, tax INTEGER DEFAULT 0, total INTEGER DEFAULT 0, quote_desc TEXT, quote_terms TEXT, sign_status TEXT DEFAULT '尚未簽核', progress TEXT DEFAULT '待安排', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS quote_items (id SERIAL PRIMARY KEY, quote_id INTEGER REFERENCES quotes(id) ON DELETE CASCADE, item_order INTEGER, item_desc TEXT, spec TEXT, equipment_id INTEGER REFERENCES equipment(id) ON DELETE SET NULL, qty INTEGER DEFAULT 0, unit_price INTEGER DEFAULT 0, item_total INTEGER DEFAULT 0)`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS contracts (id SERIAL PRIMARY KEY, doc_no TEXT, doc_date TEXT, client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL, contract_name TEXT, scope TEXT, frequency TEXT, amount INTEGER DEFAULT 0, terms TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS acceptances (id SERIAL PRIMARY KEY, doc_no TEXT, doc_date TEXT, client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL, content TEXT, note TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS purchases (id SERIAL PRIMARY KEY, purchase_no TEXT, purchase_date TEXT, supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL, quote_id INTEGER REFERENCES quotes(id) ON DELETE SET NULL, site_name TEXT, memo TEXT, subtotal_amount INTEGER DEFAULT 0, tax_amount INTEGER DEFAULT 0, total_amount INTEGER DEFAULT 0, payment_status TEXT DEFAULT '未付款', payment_method TEXT DEFAULT '現金', due_date TEXT, paid_amount INTEGER DEFAULT 0, remaining_amount INTEGER DEFAULT 0, paid_date TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS purchase_items (id SERIAL PRIMARY KEY, purchase_id INTEGER REFERENCES purchases(id) ON DELETE CASCADE, item_order INTEGER, equipment_id INTEGER REFERENCES equipment(id) ON DELETE SET NULL, item_name TEXT, spec TEXT, qty INTEGER DEFAULT 0, unit TEXT, unit_cost INTEGER DEFAULT 0, item_total INTEGER DEFAULT 0)`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS system_settings (id INTEGER PRIMARY KEY DEFAULT 1, company_name TEXT, company_tag TEXT, company_phone TEXT, company_address TEXT, quote_prefix TEXT DEFAULT 'YA', contract_prefix TEXT DEFAULT 'YB', acceptance_prefix TEXT DEFAULT 'YC', purchase_prefix TEXT DEFAULT 'PI', equipment_prefix TEXT DEFAULT 'EQ', serial_digits INTEGER DEFAULT 3, smtp_host TEXT, smtp_port TEXT, smtp_user TEXT, smtp_pass TEXT, smtp_secure BOOLEAN DEFAULT FALSE, mail_from TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-  await pool.query(`INSERT INTO system_settings (id, company_name, company_tag, company_phone, company_address, quote_prefix, contract_prefix, acceptance_prefix, purchase_prefix, equipment_prefix, serial_digits) VALUES (1,'昱拓弱電有限公司','弱電系統維修｜監控｜門禁｜對講｜車道停管｜BA中央監控','0960-770-512','桃園市中壢區榮安一街490號13樓','YA','YB','YC','PI','EQ',3) ON CONFLICT (id) DO NOTHING`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('admin','viewer')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS clients (
+    id SERIAL PRIMARY KEY,
+    client_name TEXT NOT NULL,
+    tax_id TEXT,
+    contact_person TEXT,
+    phone TEXT,
+    address TEXT,
+    job_title TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS suppliers (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    tax_id TEXT,
+    contact_person TEXT,
+    phone TEXT,
+    address TEXT,
+    bank_info TEXT,
+    note TEXT,
+    is_favorite BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS equipment_categories (
+    id SERIAL PRIMARY KEY,
+    code TEXT UNIQUE,
+    name TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS equipment (
+    id SERIAL PRIMARY KEY,
+    code TEXT,
+    category TEXT,
+    name TEXT NOT NULL,
+    spec TEXT,
+    cost INTEGER DEFAULT 0,
+    price INTEGER DEFAULT 0,
+    profit INTEGER DEFAULT 0,
+    note TEXT,
+    link TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS quotes (
+    id SERIAL PRIMARY KEY,
+    quote_no TEXT,
+    quote_date TEXT,
+    client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+    project_name TEXT NOT NULL,
+    subtotal INTEGER DEFAULT 0,
+    tax INTEGER DEFAULT 0,
+    total INTEGER DEFAULT 0,
+    quote_desc TEXT,
+    quote_terms TEXT,
+    sign_status TEXT DEFAULT '尚未簽核',
+    progress TEXT DEFAULT '待安排',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS quote_items (
+    id SERIAL PRIMARY KEY,
+    quote_id INTEGER REFERENCES quotes(id) ON DELETE CASCADE,
+    item_order INTEGER,
+    item_desc TEXT,
+    spec TEXT,
+    equipment_id INTEGER REFERENCES equipment(id) ON DELETE SET NULL,
+    qty INTEGER DEFAULT 0,
+    unit_price INTEGER DEFAULT 0,
+    item_total INTEGER DEFAULT 0
+  )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS contracts (
+    id SERIAL PRIMARY KEY,
+    doc_no TEXT,
+    doc_date TEXT,
+    client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+    contract_name TEXT,
+    scope TEXT,
+    frequency TEXT,
+    amount INTEGER DEFAULT 0,
+    terms TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS acceptances (
+    id SERIAL PRIMARY KEY,
+    doc_no TEXT,
+    doc_date TEXT,
+    client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+    content TEXT,
+    note TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS purchases (
+    id SERIAL PRIMARY KEY,
+    purchase_no TEXT,
+    purchase_date TEXT,
+    supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL,
+    quote_id INTEGER REFERENCES quotes(id) ON DELETE SET NULL,
+    site_name TEXT,
+    memo TEXT,
+    subtotal_amount INTEGER DEFAULT 0,
+    tax_amount INTEGER DEFAULT 0,
+    total_amount INTEGER DEFAULT 0,
+    payment_status TEXT DEFAULT '未付款',
+    payment_method TEXT DEFAULT '現金',
+    due_date TEXT,
+    paid_amount INTEGER DEFAULT 0,
+    remaining_amount INTEGER DEFAULT 0,
+    paid_date TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS purchase_items (
+    id SERIAL PRIMARY KEY,
+    purchase_id INTEGER REFERENCES purchases(id) ON DELETE CASCADE,
+    item_order INTEGER,
+    equipment_id INTEGER REFERENCES equipment(id) ON DELETE SET NULL,
+    item_name TEXT,
+    spec TEXT,
+    qty INTEGER DEFAULT 0,
+    unit TEXT,
+    unit_cost INTEGER DEFAULT 0,
+    item_total INTEGER DEFAULT 0
+  )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS system_settings (
+    id INTEGER PRIMARY KEY DEFAULT 1,
+    company_name TEXT,
+    company_tag TEXT,
+    company_phone TEXT,
+    company_address TEXT,
+    quote_prefix TEXT DEFAULT 'YA',
+    contract_prefix TEXT DEFAULT 'YB',
+    acceptance_prefix TEXT DEFAULT 'YC',
+    purchase_prefix TEXT DEFAULT 'PI',
+    equipment_prefix TEXT DEFAULT 'EQ',
+    serial_digits INTEGER DEFAULT 3,
+    smtp_host TEXT,
+    smtp_port TEXT,
+    smtp_user TEXT,
+    smtp_pass TEXT,
+    smtp_secure BOOLEAN DEFAULT FALSE,
+    mail_from TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await pool.query(`INSERT INTO system_settings (id, company_name, company_tag, company_phone, company_address, quote_prefix, contract_prefix, acceptance_prefix, purchase_prefix, equipment_prefix, serial_digits)
+    VALUES (1,'昱拓弱電有限公司','弱電系統維修｜監控｜門禁｜對講｜車道停管｜BA中央監控','0960-770-512','桃園市中壢區榮安一街490號13樓','YA','YB','YC','PI','EQ',3)
+    ON CONFLICT (id) DO NOTHING`);
+
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
+  await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
+  await pool.query(`ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
+  await pool.query(`ALTER TABLE equipment_categories ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
   await pool.query(`ALTER TABLE equipment ADD COLUMN IF NOT EXISTS category TEXT`);
+  await pool.query(`ALTER TABLE equipment ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
   await pool.query(`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS sign_status TEXT DEFAULT '尚未簽核'`);
   await pool.query(`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS progress TEXT DEFAULT '待安排'`);
+  await pool.query(`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
   await pool.query(`ALTER TABLE quote_items ADD COLUMN IF NOT EXISTS spec TEXT`);
   await pool.query(`ALTER TABLE quote_items ADD COLUMN IF NOT EXISTS equipment_id INTEGER REFERENCES equipment(id) ON DELETE SET NULL`);
+  await pool.query(`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
+  await pool.query(`ALTER TABLE acceptances ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
+  await pool.query(`ALTER TABLE purchases ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
+
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_quotes_quote_date ON quotes(quote_date)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_quotes_client_id ON quotes(client_id)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_quotes_sign_status ON quotes(sign_status)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_quotes_progress ON quotes(progress)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_purchases_purchase_date ON purchases(purchase_date)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_purchases_supplier_id ON purchases(supplier_id)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_purchases_payment_status ON purchases(payment_status)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_equipment_category ON equipment(category)`);
+
   const admin = await pool.query(`SELECT id FROM users WHERE username=$1`, [ADMIN_USER]);
   if(!admin.rows.length){
     await pool.query(`INSERT INTO users (username,password_hash,role) VALUES ($1,$2,'admin')`, [ADMIN_USER, hashPwd(ADMIN_PASS)]);
@@ -154,18 +321,24 @@ function buildDateRangeConditions(field, query, conditions, values) {
   }
 }
 
+
 function authRequired(req,res,next){
   const auth = req.headers.authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-  const user = tokens.get(token);
-  if(!user) return res.status(401).json({ error:'unauthorized' });
-  req.user = user;
-  next();
+  try{
+    const user = jwt.verify(token, JWT_SECRET);
+    req.user = user;
+    next();
+  }catch(err){
+    return res.status(401).json({ error:'unauthorized' });
+  }
 }
 function adminRequired(req,res,next){
   if(req.user.role !== 'admin') return res.status(403).json({ error:'forbidden' });
   next();
 }
+
+
 
 app.post('/api/login', async (req,res) => {
   const { username, password } = req.body;
@@ -173,10 +346,10 @@ app.post('/api/login', async (req,res) => {
   if(!r.rows.length) return res.status(401).json({ error:'invalid' });
   const row = r.rows[0];
   if(row.password_hash !== hashPwd(password || '')) return res.status(401).json({ error:'invalid' });
-  const token = crypto.randomBytes(24).toString('hex');
-  tokens.set(token, { id: row.id, username: row.username, role: row.role });
+  const token = jwt.sign({ id: row.id, username: row.username, role: row.role }, JWT_SECRET, { expiresIn: '12h' });
   res.json({ token, username: row.username, role: row.role });
 });
+
 
 app.get('/api/users', authRequired, adminRequired, async (req,res) => res.json((await pool.query(`SELECT id,username,role,created_at FROM users ORDER BY id DESC`)).rows));
 app.post('/api/users', authRequired, adminRequired, async (req,res) => {
@@ -569,6 +742,60 @@ app.post('/api/import/equipment', authRequired, adminRequired, upload.single('fi
 app.get('/api/export/quotes', authRequired, async (req,res) => {
   const rows = (await pool.query(`SELECT quote_no AS "單號", quote_date AS "日期", project_name AS "工程名稱", subtotal AS "未稅", tax AS "稅額", total AS "合計", sign_status AS "簽核", progress AS "進度" FROM quotes ORDER BY id DESC`)).rows;
   sendExcel(res, 'quotes.xlsx', rows, 'quotes');
+});
+
+
+app.post('/api/import/quotes', authRequired, adminRequired, upload.single('file'), async (req,res) => {
+  const rows = parseWorkbook(req.file.buffer); let imported=0;
+  for(const r of rows){
+    if(!r['單號'] || !r['工程名稱']) continue;
+    await pool.query(`INSERT INTO quotes (quote_no, quote_date, project_name, subtotal, tax, total, sign_status, progress) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [r['單號']||'', r['日期']||'', r['工程名稱']||'', Number(r['未稅']||0), Number(r['稅額']||0), Number(r['合計']||0), r['簽核']||'尚未簽核', r['進度']||'待安排']);
+    imported++;
+  }
+  res.json({ imported });
+});
+app.get('/api/export/contracts', authRequired, async (req,res) => {
+  const rows = (await pool.query(`SELECT doc_no AS "單號", doc_date AS "日期", contract_name AS "合約名稱", scope AS "服務範圍", frequency AS "頻率", amount AS "金額", terms AS "條款" FROM contracts ORDER BY id DESC`)).rows;
+  sendExcel(res, 'contracts.xlsx', rows, 'contracts');
+});
+app.post('/api/import/contracts', authRequired, adminRequired, upload.single('file'), async (req,res) => {
+  const rows = parseWorkbook(req.file.buffer); let imported=0;
+  for(const r of rows){
+    if(!r['單號']) continue;
+    await pool.query(`INSERT INTO contracts (doc_no, doc_date, contract_name, scope, frequency, amount, terms) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [r['單號']||'', r['日期']||'', r['合約名稱']||'', r['服務範圍']||'', r['頻率']||'', Number(r['金額']||0), r['條款']||'']);
+    imported++;
+  }
+  res.json({ imported });
+});
+app.get('/api/export/acceptances', authRequired, async (req,res) => {
+  const rows = (await pool.query(`SELECT doc_no AS "單號", doc_date AS "日期", content AS "驗收內容", note AS "備註" FROM acceptances ORDER BY id DESC`)).rows;
+  sendExcel(res, 'acceptances.xlsx', rows, 'acceptances');
+});
+app.post('/api/import/acceptances', authRequired, adminRequired, upload.single('file'), async (req,res) => {
+  const rows = parseWorkbook(req.file.buffer); let imported=0;
+  for(const r of rows){
+    if(!r['單號']) continue;
+    await pool.query(`INSERT INTO acceptances (doc_no, doc_date, content, note) VALUES ($1,$2,$3,$4)`,
+      [r['單號']||'', r['日期']||'', r['驗收內容']||'', r['備註']||'']);
+    imported++;
+  }
+  res.json({ imported });
+});
+app.get('/api/export/purchases', authRequired, async (req,res) => {
+  const rows = (await pool.query(`SELECT purchase_no AS "單號", purchase_date AS "日期", site_name AS "案場", total_amount AS "總額", paid_amount AS "已付", remaining_amount AS "未付", payment_status AS "付款狀態", payment_method AS "付款方式", due_date AS "到期日" FROM purchases ORDER BY id DESC`)).rows;
+  sendExcel(res, 'purchases.xlsx', rows, 'purchases');
+});
+app.post('/api/import/purchases', authRequired, adminRequired, upload.single('file'), async (req,res) => {
+  const rows = parseWorkbook(req.file.buffer); let imported=0;
+  for(const r of rows){
+    if(!r['單號']) continue;
+    await pool.query(`INSERT INTO purchases (purchase_no, purchase_date, site_name, total_amount, paid_amount, remaining_amount, payment_status, payment_method, due_date) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [r['單號']||'', r['日期']||'', r['案場']||'', Number(r['總額']||0), Number(r['已付']||0), Number(r['未付']||0), r['付款狀態']||'未付款', r['付款方式']||'現金', r['到期日']||'']);
+    imported++;
+  }
+  res.json({ imported });
 });
 
 app.get('/api/quotes/:id/pdf', authRequired, async (req,res) => {

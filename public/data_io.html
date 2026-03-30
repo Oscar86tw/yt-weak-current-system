@@ -1,0 +1,28 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>資料匯入匯出｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"></head><body><div id="app"></div><script src="/js/common.js"></script><script>
+document.getElementById('app').innerHTML = shell('系統設定 / 資料匯入匯出', `
+<div class="cards">
+  ${[
+    ['clients','客戶資料','/api/export/clients','/api/import/clients'],
+    ['suppliers','供應商','/api/export/suppliers','/api/import/suppliers'],
+    ['equipment','設備','/api/export/equipment','/api/import/equipment'],
+    ['quotes','報價單','/api/export/quotes','/api/import/quotes'],
+    ['contracts','維護合約單','/api/export/contracts','/api/import/contracts'],
+    ['acceptances','驗收單','/api/export/acceptances','/api/import/acceptances'],
+    ['purchases','進貨單','/api/export/purchases','/api/import/purchases']
+  ].map(([key,title,exp,imp])=>`
+    <div class="card">
+      <h3>${title}</h3>
+      <p>可匯出 Excel，也可從 Excel 匯入。</p>
+      <div class="toolbar">
+        <button onclick="downloadFile('${exp}')">匯出 Excel</button>
+      </div>
+      <div class="toolbar" style="margin-top:8px;">
+        <input type="file" id="file_${key}" accept=".xlsx,.xls">
+        <button class="light" onclick="uploadExcel('${imp}', document.getElementById('file_${key}'))">匯入 Excel</button>
+      </div>
+    </div>
+  `).join('')}
+</div>
+<div class="info-box" style="margin-top:16px;">已將匯入匯出功能集中到系統設定，避免和表單輸入區混在一起。</div>
+`);
+</script></body></html>
