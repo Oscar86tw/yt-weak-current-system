@@ -154,3 +154,11 @@ function lineSharePdf(type,id){
   const shareUrl = 'https://line.me/R/share?text=' + encodeURIComponent(pdfUrl);
   window.open(shareUrl,'_blank');
 }
+
+window.API.searchQuotes = async (params)=> (await API.request('/api/quotes/search?'+new URLSearchParams(params))).json();
+window.API.quoteSummary = async ()=> (await API.request('/api/quotes/summary')).json();
+window.API.searchPurchases = async (params)=> (await API.request('/api/purchases/search?'+new URLSearchParams(params))).json();
+window.API.purchaseSummary = async ()=> (await API.request('/api/purchases/summary')).json();
+window.API.purchaseOverdue = async ()=> (await API.request('/api/purchases/overdue')).json();
+window.API.searchEquipment = async (params)=> (await API.request('/api/equipment/search?'+new URLSearchParams(params))).json();
+window.API.equipmentSummary = async ()=> (await API.request('/api/equipment/summary')).json();

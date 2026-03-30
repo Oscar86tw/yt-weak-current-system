@@ -1,6 +1,6 @@
 {
   "name": "yt-weak-current-v3-6-excel-pdf-line",
-  "version": "3.6.0",
+  "version": "3.7.0",
   "main": "server.js",
   "license": "UNLICENSED",
   "scripts": {

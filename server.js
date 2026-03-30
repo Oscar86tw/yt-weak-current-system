@@ -126,6 +126,34 @@ function createPdf(res, title, lines){
   doc.end();
 }
 
+
+function toInt(value, fallback = null) {
+  if (value === undefined || value === null || value === '') return fallback;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function toStr(value) {
+  return value === undefined || value === null ? '' : String(value).trim();
+}
+
+function pushCondition(conditions, values, sql, value) {
+  if (value === undefined || value === null || value === '') return;
+  values.push(value);
+  conditions.push(sql.replace('?', `$${values.length}`));
+}
+
+function buildDateRangeConditions(field, query, conditions, values) {
+  if (query.date_from) {
+    values.push(query.date_from);
+    conditions.push(`${field} >= $${values.length}`);
+  }
+  if (query.date_to) {
+    values.push(query.date_to);
+    conditions.push(`${field} <= $${values.length}`);
+  }
+}
+
 function authRequired(req,res,next){
   const auth = req.headers.authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
@@ -369,6 +397,129 @@ app.get('/api/analysis/:type', authRequired, async (req,res) => {
   let total_amount = undefined;
   if(totalField) total_amount = rows.reduce((s,r)=>s + Number(r[totalField] || 0), 0);
   res.json({ count: rows.length, total_amount, rows });
+});
+
+
+
+app.get('/api/quotes/search', authRequired, async (req, res) => {
+  try {
+    const { keyword = '', date_from = '', date_to = '', client_id = '', sign_status = '', progress = '', total_min = '', total_max = '' } = req.query;
+    const conditions = [];
+    const values = [];
+    if (keyword) {
+      values.push(`%${keyword}%`);
+      const idx = values.length;
+      conditions.push(`(q.quote_no ILIKE $${idx} OR q.project_name ILIKE $${idx} OR COALESCE(c.client_name, '') ILIKE $${idx})`);
+    }
+    buildDateRangeConditions('q.quote_date', { date_from, date_to }, conditions, values);
+    pushCondition(conditions, values, 'q.client_id = ?', toInt(client_id));
+    pushCondition(conditions, values, 'q.sign_status = ?', sign_status);
+    pushCondition(conditions, values, 'q.progress = ?', progress);
+    if (total_min !== '') { values.push(toInt(total_min, 0)); conditions.push(`q.total >= $${values.length}`); }
+    if (total_max !== '') { values.push(toInt(total_max, 0)); conditions.push(`q.total <= $${values.length}`); }
+    const whereSql = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const sql = `SELECT q.id, q.quote_no, q.quote_date, q.client_id, c.client_name, q.project_name, q.subtotal, q.tax, q.total, q.sign_status, q.progress, q.created_at, q.updated_at FROM quotes q LEFT JOIN clients c ON c.id = q.client_id ${whereSql} ORDER BY q.quote_date DESC, q.id DESC`;
+    const rows = (await pool.query(sql, values)).rows;
+    res.json({ filters: { keyword, date_from, date_to, client_id, sign_status, progress, total_min, total_max }, rows });
+  } catch (err) {
+    console.error('quotes search error:', err);
+    res.status(500).json({ error: 'quotes_search_failed' });
+  }
+});
+
+app.get('/api/quotes/summary', authRequired, async (req, res) => {
+  try {
+    const sql = `SELECT COUNT(*) FILTER (WHERE quote_date = CURRENT_DATE::TEXT) AS today_count, COUNT(*) FILTER (WHERE DATE_TRUNC('month', CAST(quote_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)) AS month_count, COALESCE(SUM(total) FILTER (WHERE DATE_TRUNC('month', CAST(quote_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)), 0) AS month_total, COALESCE(SUM(total) FILTER (WHERE sign_status = '同意施作' AND DATE_TRUNC('month', CAST(quote_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)), 0) AS approved_total, COUNT(*) FILTER (WHERE sign_status = '尚未簽核') AS unsigned_count, COUNT(*) FILTER (WHERE progress = '待安排') AS pending_count FROM quotes`;
+    const row = (await pool.query(sql)).rows[0] || {};
+    res.json({ today_count: Number(row.today_count || 0), month_count: Number(row.month_count || 0), month_total: Number(row.month_total || 0), approved_total: Number(row.approved_total || 0), unsigned_count: Number(row.unsigned_count || 0), pending_count: Number(row.pending_count || 0) });
+  } catch (err) {
+    console.error('quotes summary error:', err);
+    res.status(500).json({ error: 'quotes_summary_failed' });
+  }
+});
+
+app.get('/api/purchases/search', authRequired, async (req, res) => {
+  try {
+    const { keyword = '', date_from = '', date_to = '', supplier_id = '', payment_status = '', payment_method = '', total_min = '', total_max = '' } = req.query;
+    const conditions = [];
+    const values = [];
+    if (keyword) {
+      values.push(`%${keyword}%`);
+      const idx = values.length;
+      conditions.push(`(p.purchase_no ILIKE $${idx} OR COALESCE(s.name, '') ILIKE $${idx} OR COALESCE(p.site_name, '') ILIKE $${idx} OR COALESCE(q.quote_no, '') ILIKE $${idx})`);
+    }
+    buildDateRangeConditions('p.purchase_date', { date_from, date_to }, conditions, values);
+    pushCondition(conditions, values, 'p.supplier_id = ?', toInt(supplier_id));
+    pushCondition(conditions, values, 'p.payment_status = ?', payment_status);
+    pushCondition(conditions, values, 'p.payment_method = ?', payment_method);
+    if (total_min !== '') { values.push(toInt(total_min, 0)); conditions.push(`p.total_amount >= $${values.length}`); }
+    if (total_max !== '') { values.push(toInt(total_max, 0)); conditions.push(`p.total_amount <= $${values.length}`); }
+    const whereSql = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const sql = `SELECT p.id, p.purchase_no, p.purchase_date, p.supplier_id, s.name AS supplier_name, p.quote_id, q.quote_no, p.site_name, p.total_amount, p.paid_amount, p.remaining_amount, p.payment_status, p.payment_method, p.due_date, p.paid_date, p.created_at, p.updated_at FROM purchases p LEFT JOIN suppliers s ON s.id = p.supplier_id LEFT JOIN quotes q ON q.id = p.quote_id ${whereSql} ORDER BY p.purchase_date DESC, p.id DESC`;
+    const rows = (await pool.query(sql, values)).rows;
+    res.json({ filters: { keyword, date_from, date_to, supplier_id, payment_status, payment_method, total_min, total_max }, rows });
+  } catch (err) {
+    console.error('purchases search error:', err);
+    res.status(500).json({ error: 'purchases_search_failed' });
+  }
+});
+
+app.get('/api/purchases/summary', authRequired, async (req, res) => {
+  try {
+    const sql = `SELECT COUNT(*) FILTER (WHERE DATE_TRUNC('month', CAST(purchase_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)) AS month_count, COALESCE(SUM(total_amount) FILTER (WHERE DATE_TRUNC('month', CAST(purchase_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)), 0) AS month_total, COALESCE(SUM(paid_amount), 0) AS paid_total, COALESCE(SUM(remaining_amount), 0) AS unpaid_total, COUNT(*) FILTER (WHERE payment_status <> '已付款') AS unpaid_count FROM purchases`;
+    const row = (await pool.query(sql)).rows[0] || {};
+    res.json({ month_count: Number(row.month_count || 0), month_total: Number(row.month_total || 0), paid_total: Number(row.paid_total || 0), unpaid_total: Number(row.unpaid_total || 0), unpaid_count: Number(row.unpaid_count || 0) });
+  } catch (err) {
+    console.error('purchases summary error:', err);
+    res.status(500).json({ error: 'purchases_summary_failed' });
+  }
+});
+
+app.get('/api/purchases/overdue', authRequired, async (req, res) => {
+  try {
+    const sql = `SELECT p.id, p.purchase_no, p.purchase_date, s.name AS supplier_name, p.total_amount, p.paid_amount, p.remaining_amount, p.due_date, p.payment_status FROM purchases p LEFT JOIN suppliers s ON s.id = p.supplier_id WHERE p.payment_status <> '已付款' AND p.due_date IS NOT NULL AND p.due_date <> '' AND CAST(p.due_date AS DATE) < CURRENT_DATE ORDER BY p.due_date ASC`;
+    const rows = (await pool.query(sql)).rows;
+    res.json({ rows });
+  } catch (err) {
+    console.error('purchases overdue error:', err);
+    res.status(500).json({ error: 'purchases_overdue_failed' });
+  }
+});
+
+app.get('/api/equipment/search', authRequired, async (req, res) => {
+  try {
+    const { keyword = '', category = '', date_from = '', date_to = '', cost_min = '', cost_max = '', price_min = '', price_max = '', profit_min = '', profit_max = '' } = req.query;
+    const conditions = [];
+    const values = [];
+    if (keyword) {
+      values.push(`%${keyword}%`);
+      const idx = values.length;
+      conditions.push(`(e.code ILIKE $${idx} OR COALESCE(e.category, '') ILIKE $${idx} OR COALESCE(e.name, '') ILIKE $${idx} OR COALESCE(e.spec, '') ILIKE $${idx} OR COALESCE(e.note, '') ILIKE $${idx})`);
+    }
+    pushCondition(conditions, values, 'e.category = ?', category);
+    if (date_from) { values.push(date_from); conditions.push(`e.created_at::DATE >= $${values.length}::DATE`); }
+    if (date_to) { values.push(date_to); conditions.push(`e.created_at::DATE <= $${values.length}::DATE`); }
+    const ranges = [['e.cost >= ?', toInt(cost_min)], ['e.cost <= ?', toInt(cost_max)], ['e.price >= ?', toInt(price_min)], ['e.price <= ?', toInt(price_max)], ['e.profit >= ?', toInt(profit_min)], ['e.profit <= ?', toInt(profit_max)]];
+    for (const [sql, value] of ranges) pushCondition(conditions, values, sql, value);
+    const whereSql = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const sql = `SELECT e.id, e.code, e.category, e.name, e.spec, e.cost, e.price, e.profit, e.note, e.link, e.created_at, e.updated_at FROM equipment e ${whereSql} ORDER BY e.created_at DESC, e.id DESC`;
+    const rows = (await pool.query(sql, values)).rows;
+    res.json({ filters: { keyword, category, date_from, date_to, cost_min, cost_max, price_min, price_max, profit_min, profit_max }, rows });
+  } catch (err) {
+    console.error('equipment search error:', err);
+    res.status(500).json({ error: 'equipment_search_failed' });
+  }
+});
+
+app.get('/api/equipment/summary', authRequired, async (req, res) => {
+  try {
+    const sql = `SELECT COUNT(*) AS total_count, COUNT(*) FILTER (WHERE DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_DATE)) AS new_this_month, COALESCE(AVG(price), 0) AS avg_price, COALESCE(AVG(profit), 0) AS avg_profit, COUNT(*) FILTER (WHERE profit >= 1000) AS high_profit_count FROM equipment`;
+    const row = (await pool.query(sql)).rows[0] || {};
+    res.json({ total_count: Number(row.total_count || 0), new_this_month: Number(row.new_this_month || 0), avg_price: Number(row.avg_price || 0), avg_profit: Number(row.avg_profit || 0), high_profit_count: Number(row.high_profit_count || 0) });
+  } catch (err) {
+    console.error('equipment summary error:', err);
+    res.status(500).json({ error: 'equipment_summary_failed' });
+  }
 });
 
 

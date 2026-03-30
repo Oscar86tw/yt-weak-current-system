@@ -1,0 +1,49 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>設備查詢｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"></head><body><div id="app"></div><script src="/js/common.js"></script><script>
+document.getElementById('app').innerHTML=shell('資料建立 / 設備 / 查詢',`
+<div class="form-panel" style="margin-bottom:16px;">
+  <h2 style="margin-top:0;">查詢條件</h2>
+  <div class="row3">
+    <div><label>關鍵字</label><input id="keyword" placeholder="編號 / 類別 / 名稱 / 規格"></div>
+    <div><label>類別</label><select id="category"></select></div>
+    <div><label>起始日期</label><input id="date_from" type="date"></div>
+  </div>
+  <div class="row3">
+    <div><label>結束日期</label><input id="date_to" type="date"></div>
+    <div><label>最低成本</label><input id="cost_min" type="number"></div>
+    <div><label>最高成本</label><input id="cost_max" type="number"></div>
+  </div>
+  <div class="row3">
+    <div><label>最低售價</label><input id="price_min" type="number"></div>
+    <div><label>最高售價</label><input id="price_max" type="number"></div>
+    <div><label>最低利潤</label><input id="profit_min" type="number"></div>
+  </div>
+  <div class="row3">
+    <div><label>最高利潤</label><input id="profit_max" type="number"></div>
+    <div style="display:flex;align-items:end;gap:8px;"><button id="searchBtn">查詢</button><button class="light" id="resetBtn">重設</button><button class="light" onclick="downloadFile('/api/export/equipment')">匯出 Excel</button></div>
+    <div></div>
+  </div>
+</div>
+<div class="kpi-grid" id="summary"></div>
+<div class="list-panel"><div id="list"></div></div>`);
+let rows=[], cats=[];
+async function loadCats(){cats=await API.getEquipmentCategories(); category.innerHTML='<option value="">全部類別</option>'+cats.map(c=>`<option value="${c.name}">${c.name}</option>`).join('')}
+function groupByMonth(arr){const g={};arr.forEach(r=>{const d=((r.created_at||'').slice(0,7))||'未分類';(g[d]||(g[d]=[])).push(r);});return g;}
+async function loadSummary(){const s=await API.equipmentSummary();summary.innerHTML=`
+  <div class="kpi"><h3>設備總數</h3><div class="big">${s.total_count||0}</div></div>
+  <div class="kpi"><h3>本月新增設備數</h3><div class="big">${s.new_this_month||0}</div></div>
+  <div class="kpi"><h3>平均售價</h3><div class="big">NT$ ${money(s.avg_price||0)}</div></div>
+  <div class="kpi"><h3>平均利潤</h3><div class="big">NT$ ${money(s.avg_profit||0)}</div></div>
+  <div class="kpi"><h3>高利潤設備數</h3><div class="big">${s.high_profit_count||0}</div></div>`;}
+function filters(){return {keyword:keyword.value,category:category.value,date_from:date_from.value,date_to:date_to.value,cost_min:cost_min.value,cost_max:cost_max.value,price_min:price_min.value,price_max:price_max.value,profit_min:profit_min.value,profit_max:profit_max.value};}
+async function loadRows(){const data=await API.searchEquipment(filters()); rows=data.rows||[]; render();}
+function render(){if(!rows.length){list.innerHTML='<div class="muted">尚無資料</div>';return;}const groups=groupByMonth(rows);list.innerHTML=Object.keys(groups).sort().reverse().map(month=>`<div class="month-group"><div class="month-title">${month}｜${groups[month].length} 筆</div>${groups[month].map(r=>`
+<div class="list-item">
+<strong>${r.code||'未編號'}｜${r.name||'未命名設備'}</strong>
+<div>類別：${r.category||'—'}　規格：${r.spec||'—'}</div>
+<div>成本：NT$ ${money(r.cost||0)}　售價：NT$ ${money(r.price||0)}　利潤：NT$ ${money(r.profit||0)}</div>
+<div class="toolbar"><a class="btn" href="/equipment.html?id=${r.id}">修改</a></div>
+</div>`).join('')}</div>`).join('');}
+function resetFilters(){['keyword','category','date_from','date_to','cost_min','cost_max','price_min','price_max','profit_min','profit_max'].forEach(id=>window[id].value=''); loadRows();}
+searchBtn.onclick=loadRows; resetBtn.onclick=resetFilters;
+(async()=>{await loadCats(); await loadSummary(); await loadRows();})();
+</script></body></html>
