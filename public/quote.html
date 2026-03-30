@@ -1,5 +1,5 @@
 <!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>報價單｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"></head><body><div id="app"></div><script src="/js/common.js"></script><script>
-document.getElementById('app').innerHTML=shell('資料建立 / 報價單 / 新增',`<div class="split"><div class="form-panel"><h2 style="margin-top:0;">報價單表單</h2><input type="hidden" id="docId"><div class="row"><div><label>文件編號</label><input id="docNo" readonly></div><div><label>日期</label><input id="docDate"></div></div><label>客戶</label><select id="clientSelect"></select><label>工程名稱</label><input id="projectName"><div class="toolbar"><button id="addItemBtn">＋新增項目</button></div><div id="itemWrap"></div><label>施工 / 查修說明</label><textarea id="quoteDesc"></textarea><label>報價條款</label><textarea id="quoteTerms">1. 本報價單有效期限為15日。\n2. 完工驗收後請於次月5日前付款。\n3. 如有新增或變更項目，費用另行報價。</textarea><div class="toolbar"><button id="saveBtn">存檔</button></div></div><div class="preview-panel" id="preview"></div></div>`);
+document.getElementById('app').innerHTML=shell('資料建立 / 報價單 / 新增',`<div class="split"><div class="form-panel"><h2 style="margin-top:0;">報價單表單</h2><input type="hidden" id="docId"><div class="row"><div><label>文件編號</label><input id="docNo" readonly></div><div><label>日期</label><input id="docDate"></div></div><label>客戶</label><select id="clientSelect"></select><label>工程名稱</label><input id="projectName"><div class="toolbar"><button id="addItemBtn">＋新增項目</button></div><div id="itemWrap"></div><label>施工 / 查修說明</label><textarea id="quoteDesc"></textarea><label>報價條款</label><textarea id="quoteTerms">1. 本報價單有效期限為15日。\n2. 完工驗收後請於次月5日前付款。\n3. 如有新增或變更項目，費用另行報價。</textarea><div class="toolbar"><button id="saveBtn">存檔</button><button class="light" type="button" onclick="exportPdf()">匯出 PDF</button><button class="light" type="button" onclick="shareLine()">LINE 傳送</button></div></div><div class="preview-panel" id="preview"></div></div>`);
 let clients=[],items=[],categories=[],equipment=[];
 
 function renderClientOptions(){clientSelect.innerHTML='<option value="">請選擇客戶</option>'+clients.map(c=>`<option value="${c.id}">${c.client_name}</option>`).join('')}
@@ -71,8 +71,7 @@ async function saveDoc(){
   const p={quote_no:docNo.value,quote_date:docDate.value,client_id:clientSelect.value||null,project_name:projectName.value||'',quote_desc:quoteDesc.value||'',quote_terms:quoteTerms.value||'',items:items.map((r,i)=>({item_order:i+1,item_desc:r.category||'',spec:r.spec||'',equipment_id:r.equipment_id||null,qty:Number(r.qty||0),unit_price:Number(r.unit_price||0)}))};
   if(!p.client_id)return alert('請先選擇客戶');
   if(!p.project_name)return alert('請輸入工程名稱');
-  if(docId.value) await API.updateQuote(docId.value,p); else await API.createQuote(p);
-  alert('報價單已存檔');
+  let res; if(docId.value) res=await API.updateQuote(docId.value,p); else res=await API.createQuote(p); if(res&&res.id&&!docId.value){ location.href='/quote.html?id='+res.id; return; } alert('報價單已存檔');
 }
 async function init(){
   clients=await API.getClients();
@@ -107,5 +106,5 @@ async function init(){
   }
   renderDoc();
 }
-init();
+function exportPdf(){ const id=docId.value||qs('id'); if(!id) return alert('請先存檔後再匯出 PDF'); downloadFile('/api/quotes/'+id+'/pdf'); } function shareLine(){ const id=docId.value||qs('id'); lineSharePdf('quotes',id); } init();
 </script></body></html>

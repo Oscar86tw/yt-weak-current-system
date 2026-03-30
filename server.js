@@ -3,10 +3,14 @@ const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
 const { Pool } = require('pg');
+const multer = require('multer');
+const XLSX = require('xlsx');
+const PDFDocument = require('pdfkit');
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+const upload = multer({ storage: multer.memoryStorage() });
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -86,6 +90,40 @@ async function initDb(){
   if(!admin.rows.length){
     await pool.query(`INSERT INTO users (username,password_hash,role) VALUES ($1,$2,'admin')`, [ADMIN_USER, hashPwd(ADMIN_PASS)]);
   }
+}
+
+
+function rowsToWorkbook(rows, sheetName){
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  return XLSX.write(wb, { type:'buffer', bookType:'xlsx' });
+}
+function sendExcel(res, filename, rows, sheetName='Sheet1'){
+  const buf = rowsToWorkbook(rows, sheetName);
+  res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(buf);
+}
+function parseWorkbook(fileBuffer){
+  const wb = XLSX.read(fileBuffer, { type:'buffer' });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  return XLSX.utils.sheet_to_json(sheet, { defval:'' });
+}
+function createPdf(res, title, lines){
+  const doc = new PDFDocument({ margin: 40 });
+  const chunks = [];
+  doc.on('data', c => chunks.push(c));
+  doc.on('end', () => {
+    const buf = Buffer.concat(chunks);
+    res.setHeader('Content-Type','application/pdf');
+    res.send(buf);
+  });
+  doc.fontSize(20).text(title);
+  doc.moveDown();
+  doc.fontSize(12);
+  lines.forEach(line => doc.text(String(line)));
+  doc.end();
 }
 
 function authRequired(req,res,next){
@@ -332,6 +370,81 @@ app.get('/api/analysis/:type', authRequired, async (req,res) => {
   if(totalField) total_amount = rows.reduce((s,r)=>s + Number(r[totalField] || 0), 0);
   res.json({ count: rows.length, total_amount, rows });
 });
+
+
+app.get('/api/export/clients', authRequired, async (req,res) => {
+  const rows = (await pool.query(`SELECT client_name AS "客戶名稱", tax_id AS "統一編號", contact_person AS "聯絡人", phone AS "電話", address AS "地址", job_title AS "職位" FROM clients ORDER BY id DESC`)).rows;
+  sendExcel(res, 'clients.xlsx', rows, 'clients');
+});
+app.post('/api/import/clients', authRequired, adminRequired, upload.single('file'), async (req,res) => {
+  const rows = parseWorkbook(req.file.buffer); let imported=0;
+  for(const r of rows){
+    if(!r['客戶名稱']) continue;
+    await pool.query(`INSERT INTO clients (client_name,tax_id,contact_person,phone,address,job_title) VALUES ($1,$2,$3,$4,$5,$6)`, [r['客戶名稱']||'', r['統一編號']||'', r['聯絡人']||'', r['電話']||'', r['地址']||'', r['職位']||'']);
+    imported++;
+  }
+  res.json({ imported });
+});
+
+app.get('/api/export/suppliers', authRequired, async (req,res) => {
+  const rows = (await pool.query(`SELECT name AS "供應商名稱", tax_id AS "統一編號", contact_person AS "聯絡人", phone AS "電話", address AS "地址", bank_info AS "匯款帳號", note AS "備註" FROM suppliers ORDER BY id DESC`)).rows;
+  sendExcel(res, 'suppliers.xlsx', rows, 'suppliers');
+});
+app.post('/api/import/suppliers', authRequired, adminRequired, upload.single('file'), async (req,res) => {
+  const rows = parseWorkbook(req.file.buffer); let imported=0;
+  for(const r of rows){
+    if(!r['供應商名稱']) continue;
+    await pool.query(`INSERT INTO suppliers (name,tax_id,contact_person,phone,address,bank_info,note) VALUES ($1,$2,$3,$4,$5,$6,$7)`, [r['供應商名稱']||'', r['統一編號']||'', r['聯絡人']||'', r['電話']||'', r['地址']||'', r['匯款帳號']||'', r['備註']||'']);
+    imported++;
+  }
+  res.json({ imported });
+});
+
+app.get('/api/export/equipment', authRequired, async (req,res) => {
+  const rows = (await pool.query(`SELECT code AS "編號", category AS "類別", name AS "名稱", spec AS "規格", cost AS "成本", price AS "售價", profit AS "利潤", note AS "備註", link AS "連結" FROM equipment ORDER BY id DESC`)).rows;
+  sendExcel(res, 'equipment.xlsx', rows, 'equipment');
+});
+app.post('/api/import/equipment', authRequired, adminRequired, upload.single('file'), async (req,res) => {
+  const rows = parseWorkbook(req.file.buffer); let imported=0;
+  for(const r of rows){
+    if(!r['名稱']) continue;
+    const cost = Number(r['成本']||0), price = Number(r['售價']||0);
+    await pool.query(`INSERT INTO equipment (code,category,name,spec,cost,price,profit,note,link) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [r['編號']||'', r['類別']||'', r['名稱']||'', r['規格']||'', cost, price, price-cost, r['備註']||'', r['連結']||'']);
+    imported++;
+  }
+  res.json({ imported });
+});
+
+app.get('/api/export/quotes', authRequired, async (req,res) => {
+  const rows = (await pool.query(`SELECT quote_no AS "單號", quote_date AS "日期", project_name AS "工程名稱", subtotal AS "未稅", tax AS "稅額", total AS "合計", sign_status AS "簽核", progress AS "進度" FROM quotes ORDER BY id DESC`)).rows;
+  sendExcel(res, 'quotes.xlsx', rows, 'quotes');
+});
+
+app.get('/api/quotes/:id/pdf', authRequired, async (req,res) => {
+  const q = (await pool.query(`SELECT * FROM quotes WHERE id=$1`, [req.params.id])).rows[0];
+  const items = (await pool.query(`SELECT * FROM quote_items WHERE quote_id=$1 ORDER BY item_order ASC`, [req.params.id])).rows;
+  if(!q) return res.status(404).json({ error:'not found' });
+  const lines = [`單號：${q.quote_no||''}`, `日期：${q.quote_date||''}`, `工程：${q.project_name||''}`, `合計：NT$ ${q.total||0}`, '', '項目：', ...items.map(x=>`${x.item_order}. ${x.item_desc||''} ${x.spec||''} x${x.qty||0} / NT$ ${x.unit_price||0}`)];
+  createPdf(res, '工程報價單', lines);
+});
+app.get('/api/contracts/:id/pdf', authRequired, async (req,res) => {
+  const q = (await pool.query(`SELECT * FROM contracts WHERE id=$1`, [req.params.id])).rows[0];
+  if(!q) return res.status(404).json({ error:'not found' });
+  createPdf(res, '維護合約單', [`單號：${q.doc_no||''}`, `日期：${q.doc_date||''}`, `合約：${q.contract_name||''}`, `金額：NT$ ${q.amount||0}`, '', q.scope||'', '', q.terms||'']);
+});
+app.get('/api/acceptances/:id/pdf', authRequired, async (req,res) => {
+  const q = (await pool.query(`SELECT * FROM acceptances WHERE id=$1`, [req.params.id])).rows[0];
+  if(!q) return res.status(404).json({ error:'not found' });
+  createPdf(res, '驗收單', [`單號：${q.doc_no||''}`, `日期：${q.doc_date||''}`, '', q.content||'', '', q.note||'']);
+});
+app.get('/api/purchases/:id/pdf', authRequired, async (req,res) => {
+  const q = (await pool.query(`SELECT * FROM purchases WHERE id=$1`, [req.params.id])).rows[0];
+  const items = (await pool.query(`SELECT * FROM purchase_items WHERE purchase_id=$1 ORDER BY item_order ASC`, [req.params.id])).rows;
+  if(!q) return res.status(404).json({ error:'not found' });
+  const lines = [`單號：${q.purchase_no||''}`, `日期：${q.purchase_date||''}`, `案場：${q.site_name||''}`, `總額：NT$ ${q.total_amount||0}`, '', '項目：', ...items.map(x=>`${x.item_order}. ${x.item_name||''} ${x.spec||''} x${x.qty||0} / NT$ ${x.unit_cost||0}`)];
+  createPdf(res, '進貨單', lines);
+});
+
 
 app.get('/', (req,res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 

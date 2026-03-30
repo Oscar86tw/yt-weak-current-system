@@ -1,6 +1,6 @@
 {
-  "name": "yt-weak-current-v3-5-analysis",
-  "version": "3.5.6",
+  "name": "yt-weak-current-v3-6-excel-pdf-line",
+  "version": "3.6.0",
   "main": "server.js",
   "license": "UNLICENSED",
   "scripts": {
@@ -8,6 +8,9 @@
   },
   "dependencies": {
     "express": "^4.21.2",
-    "pg": "^8.13.1"
+    "pg": "^8.13.1",
+    "multer": "^1.4.5-lts.1",
+    "xlsx": "^0.18.5",
+    "pdfkit": "^0.15.0"
   }
 }

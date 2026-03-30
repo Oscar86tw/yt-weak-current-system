@@ -1,5 +1,5 @@
 <!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>報價單查詢｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"></head><body><div id="app"></div><script src="/js/common.js"></script><script>
-document.getElementById('app').innerHTML=shell('資料建立 / 報價單 / 查詢',`<div class="list-panel"><div class="toolbar"><input id="search" placeholder="輸入單號 / 工程查詢"></div><div id="list"></div></div>`);
+document.getElementById('app').innerHTML=shell('資料建立 / 報價單 / 查詢',`<div class="list-panel"><div class="toolbar"><button class="light" onclick="downloadFile('/api/export/quotes')">匯出 Excel</button><input id="search" placeholder="輸入單號 / 工程查詢"></div><div id="list"></div></div>`);
 let rows=[];
 
 function groupByMonth(arr){

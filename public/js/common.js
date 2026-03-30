@@ -138,3 +138,19 @@ function shell(title,content){
   </div><div style="margin-top:16px" class="info-box">已修正選單層級與顯示：第一層不再保留獨立查詢，第三層各模組均可展開並連到新增、查詢、清單列表、分析。</div></aside><main class="main">${content}</main></div></div>`;
 }
 document.addEventListener('DOMContentLoaded',autoOpenByPath);
+
+function downloadFile(url){ window.open(url, '_blank'); }
+async function uploadExcel(endpoint, inputEl){
+  if(!inputEl.files||!inputEl.files[0]){ alert('請先選擇 Excel 檔'); return; }
+  const fd=new FormData();
+  fd.append('file', inputEl.files[0]);
+  const r=await API.request(endpoint,{method:'POST', body:fd});
+  const data=await r.json();
+  alert(`匯入完成：${data.imported||0} 筆`);
+}
+function lineSharePdf(type,id){
+  if(!id){ alert('請先存檔後再分享 LINE'); return; }
+  const pdfUrl = location.origin + `/api/${type}/${id}/pdf`;
+  const shareUrl = 'https://line.me/R/share?text=' + encodeURIComponent(pdfUrl);
+  window.open(shareUrl,'_blank');
+}
