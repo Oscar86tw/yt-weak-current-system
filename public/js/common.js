@@ -8,20 +8,45 @@ window.API={
  async getUsers(){return (await this.request('/api/users')).json();},
  async createUser(p){return (await this.request('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
  async updateUser(id,p){return (await this.request('/api/users/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
+
  async getClients(){return (await this.request('/api/clients')).json();},
  async createClient(p){return (await this.request('/api/clients',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
  async updateClient(id,p){return (await this.request('/api/clients/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
  async deleteClient(id){return (await this.request('/api/clients/'+id,{method:'DELETE'})).json();},
- async nextNo(type){return (await this.request('/api/serials/next?type='+encodeURIComponent(type))).json();},
+
  async getSuppliers(){return (await this.request('/api/suppliers')).json();},
  async createSupplier(p){return (await this.request('/api/suppliers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
  async updateSupplier(id,p){return (await this.request('/api/suppliers/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
  async deleteSupplier(id){return (await this.request('/api/suppliers/'+id,{method:'DELETE'})).json();},
+
  async listEquipment(){return (await this.request('/api/equipment')).json();},
  async createEquipment(p){return (await this.request('/api/equipment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
  async updateEquipment(id,p){return (await this.request('/api/equipment/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
  async deleteEquipment(id){return (await this.request('/api/equipment/'+id,{method:'DELETE'})).json();},
+
+ async nextNo(type){return (await this.request('/api/serials/next?type='+encodeURIComponent(type))).json();},
+
  async listQuotes(){return (await this.request('/api/quotes')).json();},
+ async getQuote(id){return (await this.request('/api/quotes/'+id)).json();},
+ async createQuote(p){return (await this.request('/api/quotes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
+ async updateQuote(id,p){return (await this.request('/api/quotes/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
+ async deleteQuote(id){return (await this.request('/api/quotes/'+id,{method:'DELETE'})).json();},
+
+ async listContracts(){return (await this.request('/api/contracts')).json();},
+ async getContract(id){return (await this.request('/api/contracts/'+id)).json();},
+ async createContract(p){return (await this.request('/api/contracts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
+ async updateContract(id,p){return (await this.request('/api/contracts/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
+ async deleteContract(id){return (await this.request('/api/contracts/'+id,{method:'DELETE'})).json();},
+
+ async listAcceptances(){return (await this.request('/api/acceptances')).json();},
+ async getAcceptance(id){return (await this.request('/api/acceptances/'+id)).json();},
+ async createAcceptance(p){return (await this.request('/api/acceptances',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
+ async updateAcceptance(id,p){return (await this.request('/api/acceptances/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
+ async deleteAcceptance(id){return (await this.request('/api/acceptances/'+id,{method:'DELETE'})).json();},
+
+ async listQuoteTracking(){return (await this.request('/api/quote-tracking')).json();},
+ async updateQuoteTracking(id,p){return (await this.request('/api/quote-tracking/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
+
  async listPurchases(){return (await this.request('/api/purchases')).json();},
  async getPurchase(id){return (await this.request('/api/purchases/'+id)).json();},
  async createPurchase(p){return (await this.request('/api/purchases',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
@@ -30,11 +55,13 @@ window.API={
  async listPayables(){return (await this.request('/api/payables')).json();}
 };
 function money(v){return Number(v||0).toLocaleString('zh-TW',{maximumFractionDigits:0});}
+function nl2br(s){return (s||'').replace(/\n/g,'<br>');}
+function splitLines(s){return (s||'').split('\n').filter(Boolean);}
 function qs(name){return new URL(location.href).searchParams.get(name)||'';}
 function requireLogin(){if(!localStorage.getItem('yt_token')){location.href='/login.html';return false;}return true;}
 function logout(){localStorage.clear();location.href='/login.html';}
 function active(path){return location.pathname.endsWith(path);}
 function toggleMenu(id){const el=document.getElementById(id);if(el)el.classList.toggle('hidden');}
-function openMenusByPath(){const p=location.pathname;if(['purchase.html'].some(x=>p.endsWith(x))){const el=document.getElementById('menu-create');if(el)el.classList.remove('hidden');}if(['suppliers.html','purchases.html','payables.html','equipment.html','clients.html','users.html'].some(x=>p.endsWith(x))){const el=document.getElementById('menu-query');if(el)el.classList.remove('hidden');}}
-function shell(title,content){if(!requireLogin())return '';const user=localStorage.getItem('yt_user')||'';return `<div class="wrap"><div class="topbar"><div class="brand"><h1>${COMPANY.name}｜V3 進貨管帳整合版</h1><p>${title}</p></div><div class="actions"><span class="badge">${user}</span><span class="badge">${API.role()==='admin'?'管理者':'檢視者'}</span><button class="secondary" onclick="logout()">登出</button></div></div><div class="layout"><aside class="sidebar"><div class="nav-title">主功能</div><div class="menu"><a class="btn ${active('index.html')||location.pathname==='/'?'active':''}" href="/index.html">首頁</a><a class="btn ${active('clients.html')?'active':''}" href="/clients.html">客戶資料</a><a class="btn ${active('equipment.html')?'active':''}" href="/equipment.html">設備</a><button class="btn parent" onclick="toggleMenu('menu-create')">新增</button><div id="menu-create" class="submenu hidden"><a class="btn ${active('purchase.html')?'active':''}" href="/purchase.html">進貨單</a></div><button class="btn parent" onclick="toggleMenu('menu-query')">查詢</button><div id="menu-query" class="submenu hidden"><a class="btn ${active('suppliers.html')?'active':''}" href="/suppliers.html">供應商</a><a class="btn ${active('purchases.html')?'active':''}" href="/purchases.html">進貨查詢</a><a class="btn ${active('payables.html')?'active':''}" href="/payables.html">應付帳款</a>${API.role()==='admin'?`<a class="btn ${active('users.html')?'active':''}" href="/users.html">帳戶管理</a>`:''}</div></div><div style="margin-top:16px" class="info-box">進貨模式採直接對案場進貨，並含刪除確認機制。</div></aside><main class="main">${content}</main></div></div>`;}
+function openMenusByPath(){const p=location.pathname;if(['quote.html','contracts.html','acceptance.html','purchase.html'].some(x=>p.endsWith(x))){const el=document.getElementById('menu-create');if(el)el.classList.remove('hidden');}if(['quotes.html','contracts_history.html','acceptances_history.html','equipment.html','quote_tracking.html','suppliers.html','purchases.html','payables.html','clients.html','users.html'].some(x=>p.endsWith(x))){const el=document.getElementById('menu-query');if(el)el.classList.remove('hidden');}}
+function shell(title,content){if(!requireLogin())return '';const user=localStorage.getItem('yt_user')||'';return `<div class="wrap"><div class="topbar"><div class="brand"><h1>${COMPANY.name}｜V3.1 文件＋進貨整合版</h1><p>${title}</p></div><div class="actions"><span class="badge">${user}</span><span class="badge">${API.role()==='admin'?'管理者':'檢視者'}</span><button class="secondary" onclick="logout()">登出</button></div></div><div class="layout"><aside class="sidebar"><div class="nav-title">主功能</div><div class="menu"><a class="btn ${active('index.html')||location.pathname==='/'?'active':''}" href="/index.html">首頁</a><a class="btn ${active('clients.html')?'active':''}" href="/clients.html">客戶資料</a><a class="btn ${active('equipment.html')?'active':''}" href="/equipment.html">設備</a><button class="btn parent" onclick="toggleMenu('menu-create')">新增</button><div id="menu-create" class="submenu hidden"><a class="btn ${active('quote.html')?'active':''}" href="/quote.html">報價單</a><a class="btn ${active('contracts.html')?'active':''}" href="/contracts.html">維護合約單</a><a class="btn ${active('acceptance.html')?'active':''}" href="/acceptance.html">驗收單</a><a class="btn ${active('purchase.html')?'active':''}" href="/purchase.html">進貨單</a></div><button class="btn parent" onclick="toggleMenu('menu-query')">查詢</button><div id="menu-query" class="submenu hidden"><a class="btn ${active('quotes.html')?'active':''}" href="/quotes.html">報價單</a><a class="btn ${active('contracts_history.html')?'active':''}" href="/contracts_history.html">維護合約單</a><a class="btn ${active('acceptances_history.html')?'active':''}" href="/acceptances_history.html">驗收單</a><a class="btn ${active('quote_tracking.html')?'active':''}" href="/quote_tracking.html">報價追蹤</a><a class="btn ${active('suppliers.html')?'active':''}" href="/suppliers.html">供應商</a><a class="btn ${active('purchases.html')?'active':''}" href="/purchases.html">進貨查詢</a><a class="btn ${active('payables.html')?'active':''}" href="/payables.html">應付帳款</a>${API.role()==='admin'?`<a class="btn ${active('users.html')?'active':''}" href="/users.html">帳戶管理</a>`:''}</div></div><div style="margin-top:16px" class="info-box">V3.1 已把報價單、合約單、驗收單整合為同一套 UI 風格與資料串接。</div></aside><main class="main">${content}</main></div></div>`;}
 document.addEventListener('DOMContentLoaded',openMenusByPath);

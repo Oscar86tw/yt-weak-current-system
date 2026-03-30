@@ -1,18 +1,22 @@
 
-:root{--bg:#f6f7fb;--card:#fff;--text:#1f2937;--muted:#6b7280;--line:#d1d5db;--brand:#1f4f8a;--brand2:#0f172a;--danger:#b91c1c;--menu1:#15803d;--menu1-dark:#166534;--menu2:#ea580c;--menu2-dark:#c2410c}
+:root{
+  --bg:#f6f7fb;--card:#fff;--text:#1f2937;--muted:#6b7280;--line:#d1d5db;
+  --brand:#1f4f8a;--brand2:#0f172a;--danger:#b91c1c;--ok:#065f46;
+  --menu1:#15803d;--menu1-dark:#166534;--menu2:#ea580c;--menu2-dark:#c2410c;
+}
 *{box-sizing:border-box}body{margin:0;font-family:"Microsoft JhengHei","PingFang TC",sans-serif;background:var(--bg);color:var(--text)}
-.wrap{max-width:1480px;margin:0 auto;padding:20px}.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.wrap{max-width:1500px;margin:0 auto;padding:20px}.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
 .brand{background:linear-gradient(135deg,var(--brand2),var(--brand));color:#fff;padding:18px 22px;border-radius:18px;box-shadow:0 12px 30px rgba(15,23,42,.16)}.brand h1{margin:0;font-size:24px}.brand p{margin:6px 0 0;font-size:13px;opacity:.92}
 .actions{display:flex;gap:8px;flex-wrap:wrap}.badge{display:inline-block;padding:4px 10px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px}
 button,.btn{border:0;border-radius:12px;padding:10px 14px;font-size:14px;cursor:pointer;background:var(--brand);color:#fff;text-decoration:none;display:inline-block}
-button.secondary,.btn.secondary{background:#475569}button.light,.btn.light{background:#fff;color:#111827;border:1px solid var(--line)}button.danger,.btn.danger{background:var(--danger)}
+button.secondary,.btn.secondary{background:#475569}button.light,.btn.light{background:#fff;color:#111827;border:1px solid var(--line)}button.danger,.btn.danger{background:var(--danger)}button.ok,.btn.ok{background:var(--ok)}
 .layout{display:grid;grid-template-columns:340px 1fr;gap:18px}.sidebar,.main{background:var(--card);border-radius:22px;border:1px solid rgba(209,213,219,.7);box-shadow:0 10px 24px rgba(15,23,42,.06)}
 .sidebar{padding:16px;position:sticky;top:14px;align-self:start}.main{padding:24px;min-height:860px}.nav-title{font-size:13px;color:var(--muted);font-weight:700;margin:6px 0 8px}
 .menu{display:grid;gap:8px}.submenu{display:grid;gap:8px;margin:4px 0 14px 12px;padding-left:12px;border-left:3px solid #e5e7eb}.submenu.hidden{display:none!important}
 .menu .btn,.menu .parent{background:var(--menu1)}.menu .btn:hover,.menu .parent:hover{background:var(--menu1-dark)}.submenu .btn{background:var(--menu2)}.submenu .btn:hover{background:var(--menu2-dark)}
 .info-box{padding:12px 14px;border-radius:14px;background:#ecfeff;border:1px solid #a5f3fc;color:#155e75;font-size:13px;line-height:1.7}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}.card{border:1px solid var(--line);border-radius:18px;padding:18px;background:linear-gradient(180deg,#fff,#f9fbff)}.card h3{margin:0 0 6px;font-size:18px}.card p{margin:0;font-size:13px;color:var(--muted);line-height:1.7}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.split{display:grid;grid-template-columns:540px 1fr;gap:18px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.split{display:grid;grid-template-columns:560px 1fr;gap:18px}
 label{display:block;font-size:13px;margin-bottom:6px;color:#374151;font-weight:700}input,textarea,select{width:100%;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px;margin-bottom:10px;background:#fff}textarea{min-height:84px;resize:vertical}
 .form-panel,.preview-panel,.list-panel{border:1px solid var(--line);border-radius:18px;background:#fff}.form-panel,.list-panel{padding:16px}.preview-panel{padding:28px}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.list-item{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;background:#fff}.list-item strong{display:block;margin-bottom:6px}
