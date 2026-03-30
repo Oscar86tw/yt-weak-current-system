@@ -322,6 +322,12 @@ function buildDateRangeConditions(field, query, conditions, values) {
 }
 
 
+
+function requireNumericId(req,res,next){
+  if(!/^\d+$/.test(String(req.params.id || ''))) return next('route');
+  next();
+}
+
 function authRequired(req,res,next){
   const auth = req.headers.authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
@@ -357,7 +363,7 @@ app.post('/api/users', authRequired, adminRequired, async (req,res) => {
   const r = await pool.query(`INSERT INTO users (username,password_hash,role) VALUES ($1,$2,$3) RETURNING id,username,role,created_at`, [username, hashPwd(password), role === 'admin' ? 'admin' : 'viewer']);
   res.json(r.rows[0]);
 });
-app.put('/api/users/:id', authRequired, adminRequired, async (req,res) => {
+app.put('/api/users/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => {
   const { username, password, role } = req.body;
   let r;
   if(password){
@@ -385,12 +391,12 @@ app.post('/api/equipment-categories', authRequired, adminRequired, async (req,re
   const r=await pool.query(`INSERT INTO equipment_categories (code,name) VALUES ($1,$2) RETURNING *`, [d.code||'', d.name||'']);
   res.json(r.rows[0]);
 });
-app.put('/api/equipment-categories/:id', authRequired, adminRequired, async (req,res) => {
+app.put('/api/equipment-categories/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => {
   const d=req.body;
   const r=await pool.query(`UPDATE equipment_categories SET code=$1,name=$2 WHERE id=$3 RETURNING *`, [d.code||'', d.name||'', req.params.id]);
   res.json(r.rows[0]);
 });
-app.delete('/api/equipment-categories/:id', authRequired, adminRequired, async (req,res) => {
+app.delete('/api/equipment-categories/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => {
   await pool.query(`DELETE FROM equipment_categories WHERE id=$1`, [req.params.id]);
   res.json({ ok:true });
 });
@@ -401,12 +407,12 @@ app.post('/api/clients', authRequired, adminRequired, async (req,res) => {
   const r = await pool.query(`INSERT INTO clients (client_name,tax_id,contact_person,phone,address,job_title) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`, [d.client_name||'', d.tax_id||'', d.contact_person||'', d.phone||'', d.address||'', d.job_title||'']);
   res.json(r.rows[0]);
 });
-app.put('/api/clients/:id', authRequired, adminRequired, async (req,res) => {
+app.put('/api/clients/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => {
   const d=req.body;
   const r = await pool.query(`UPDATE clients SET client_name=$1,tax_id=$2,contact_person=$3,phone=$4,address=$5,job_title=$6 WHERE id=$7 RETURNING *`, [d.client_name||'', d.tax_id||'', d.contact_person||'', d.phone||'', d.address||'', d.job_title||'', req.params.id]);
   res.json(r.rows[0]);
 });
-app.delete('/api/clients/:id', authRequired, adminRequired, async (req,res) => { await pool.query(`DELETE FROM clients WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
+app.delete('/api/clients/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => { await pool.query(`DELETE FROM clients WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
 
 app.get('/api/suppliers', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM suppliers ORDER BY id DESC`)).rows));
 app.post('/api/suppliers', authRequired, adminRequired, async (req,res) => {
@@ -414,12 +420,12 @@ app.post('/api/suppliers', authRequired, adminRequired, async (req,res) => {
   const r = await pool.query(`INSERT INTO suppliers (name,tax_id,contact_person,phone,address,bank_info,note,is_favorite) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`, [d.name||'', d.tax_id||'', d.contact_person||'', d.phone||'', d.address||'', d.bank_info||'', d.note||'', !!d.is_favorite]);
   res.json(r.rows[0]);
 });
-app.put('/api/suppliers/:id', authRequired, adminRequired, async (req,res) => {
+app.put('/api/suppliers/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => {
   const d=req.body;
   const r = await pool.query(`UPDATE suppliers SET name=$1,tax_id=$2,contact_person=$3,phone=$4,address=$5,bank_info=$6,note=$7,is_favorite=$8 WHERE id=$9 RETURNING *`, [d.name||'', d.tax_id||'', d.contact_person||'', d.phone||'', d.address||'', d.bank_info||'', d.note||'', !!d.is_favorite, req.params.id]);
   res.json(r.rows[0]);
 });
-app.delete('/api/suppliers/:id', authRequired, adminRequired, async (req,res) => { await pool.query(`DELETE FROM suppliers WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
+app.delete('/api/suppliers/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => { await pool.query(`DELETE FROM suppliers WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
 
 app.get('/api/equipment', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM equipment ORDER BY id DESC`)).rows));
 app.post('/api/equipment', authRequired, adminRequired, async (req,res) => {
@@ -427,17 +433,104 @@ app.post('/api/equipment', authRequired, adminRequired, async (req,res) => {
   const r = await pool.query(`INSERT INTO equipment (code,category,name,spec,cost,price,profit,note,link) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, [d.code||'', d.category||'', d.name||'', d.spec||'', Number(d.cost||0), Number(d.price||0), profit, d.note||'', d.link||'']);
   res.json(r.rows[0]);
 });
-app.put('/api/equipment/:id', authRequired, adminRequired, async (req,res) => {
+app.put('/api/equipment/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => {
   const d=req.body; const profit=Number(d.price||0)-Number(d.cost||0);
   const r = await pool.query(`UPDATE equipment SET code=$1,category=$2,name=$3,spec=$4,cost=$5,price=$6,profit=$7,note=$8,link=$9 WHERE id=$10 RETURNING *`, [d.code||'', d.category||'', d.name||'', d.spec||'', Number(d.cost||0), Number(d.price||0), profit, d.note||'', d.link||'', req.params.id]);
   res.json(r.rows[0]);
 });
-app.delete('/api/equipment/:id', authRequired, adminRequired, async (req,res) => { await pool.query(`DELETE FROM equipment WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
+app.delete('/api/equipment/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => { await pool.query(`DELETE FROM equipment WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
+
+
+app.get('/api/quotes/search', authRequired, async (req, res) => {
+  try {
+    const { keyword = '', date_from = '', date_to = '', client_id = '', sign_status = '', progress = '', total_min = '', total_max = '' } = req.query;
+    const conditions = [];
+    const values = [];
+    if (keyword) {
+      values.push(`%${keyword}%`);
+      const i = values.length;
+      conditions.push(`(q.quote_no ILIKE $${i} OR q.project_name ILIKE $${i} OR COALESCE(c.client_name,'') ILIKE $${i})`);
+    }
+    buildDateRangeConditions('q.quote_date', { date_from, date_to }, conditions, values);
+    pushCondition(conditions, values, 'q.client_id = ?', toInt(client_id));
+    pushCondition(conditions, values, 'q.sign_status = ?', sign_status);
+    pushCondition(conditions, values, 'q.progress = ?', progress);
+    if(total_min!==''){ values.push(toInt(total_min,0)); conditions.push(`q.total >= $${values.length}`); }
+    if(total_max!==''){ values.push(toInt(total_max,0)); conditions.push(`q.total <= $${values.length}`); }
+    const whereSql = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const rows = (await pool.query(`SELECT q.id,q.quote_no,q.quote_date,q.client_id,c.client_name,q.project_name,q.subtotal,q.tax,q.total,q.sign_status,q.progress,q.created_at,q.updated_at FROM quotes q LEFT JOIN clients c ON c.id=q.client_id ${whereSql} ORDER BY q.quote_date DESC,q.id DESC`, values)).rows;
+    res.json({ filters:{ keyword, date_from, date_to, client_id, sign_status, progress, total_min, total_max }, rows });
+  } catch (err) { console.error('quotes search error:', err); res.status(500).json({ error:'quotes_search_failed' }); }
+});
+app.get('/api/quotes/summary', authRequired, async (req, res) => {
+  try {
+    const row = (await pool.query(`SELECT COUNT(*) FILTER (WHERE quote_date = CURRENT_DATE::TEXT) AS today_count, COUNT(*) FILTER (WHERE DATE_TRUNC('month', CAST(quote_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)) AS month_count, COALESCE(SUM(total) FILTER (WHERE DATE_TRUNC('month', CAST(quote_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)),0) AS month_total, COALESCE(SUM(total) FILTER (WHERE sign_status='同意施作' AND DATE_TRUNC('month', CAST(quote_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)),0) AS approved_total, COUNT(*) FILTER (WHERE sign_status='尚未簽核') AS unsigned_count, COUNT(*) FILTER (WHERE progress='待安排') AS pending_count FROM quotes`)).rows[0] || {};
+    res.json({ today_count:Number(row.today_count||0), month_count:Number(row.month_count||0), month_total:Number(row.month_total||0), approved_total:Number(row.approved_total||0), unsigned_count:Number(row.unsigned_count||0), pending_count:Number(row.pending_count||0) });
+  } catch (err) { console.error('quotes summary error:', err); res.status(500).json({ error:'quotes_summary_failed' }); }
+});
+app.get('/api/purchases/search', authRequired, async (req, res) => {
+  try {
+    const { keyword = '', date_from = '', date_to = '', supplier_id = '', payment_status = '', payment_method = '', total_min = '', total_max = '' } = req.query;
+    const conditions = [];
+    const values = [];
+    if (keyword) {
+      values.push(`%${keyword}%`);
+      const i = values.length;
+      conditions.push(`(p.purchase_no ILIKE $${i} OR COALESCE(s.name,'') ILIKE $${i} OR COALESCE(p.site_name,'') ILIKE $${i} OR COALESCE(q.quote_no,'') ILIKE $${i})`);
+    }
+    buildDateRangeConditions('p.purchase_date', { date_from, date_to }, conditions, values);
+    pushCondition(conditions, values, 'p.supplier_id = ?', toInt(supplier_id));
+    pushCondition(conditions, values, 'p.payment_status = ?', payment_status);
+    pushCondition(conditions, values, 'p.payment_method = ?', payment_method);
+    if(total_min!==''){ values.push(toInt(total_min,0)); conditions.push(`p.total_amount >= $${values.length}`); }
+    if(total_max!==''){ values.push(toInt(total_max,0)); conditions.push(`p.total_amount <= $${values.length}`); }
+    const whereSql = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const rows = (await pool.query(`SELECT p.id,p.purchase_no,p.purchase_date,p.supplier_id,s.name AS supplier_name,p.quote_id,q.quote_no,p.site_name,p.total_amount,p.paid_amount,p.remaining_amount,p.payment_status,p.payment_method,p.due_date,p.paid_date,p.created_at,p.updated_at FROM purchases p LEFT JOIN suppliers s ON s.id=p.supplier_id LEFT JOIN quotes q ON q.id=p.quote_id ${whereSql} ORDER BY p.purchase_date DESC,p.id DESC`, values)).rows;
+    res.json({ filters:{ keyword,date_from,date_to,supplier_id,payment_status,payment_method,total_min,total_max }, rows });
+  } catch (err) { console.error('purchases search error:', err); res.status(500).json({ error:'purchases_search_failed' }); }
+});
+app.get('/api/purchases/summary', authRequired, async (req, res) => {
+  try {
+    const row = (await pool.query(`SELECT COUNT(*) FILTER (WHERE DATE_TRUNC('month', CAST(purchase_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)) AS month_count, COALESCE(SUM(total_amount) FILTER (WHERE DATE_TRUNC('month', CAST(purchase_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)),0) AS month_total, COALESCE(SUM(paid_amount),0) AS paid_total, COALESCE(SUM(remaining_amount),0) AS unpaid_total, COUNT(*) FILTER (WHERE payment_status <> '已付款') AS unpaid_count FROM purchases`)).rows[0] || {};
+    res.json({ month_count:Number(row.month_count||0), month_total:Number(row.month_total||0), paid_total:Number(row.paid_total||0), unpaid_total:Number(row.unpaid_total||0), unpaid_count:Number(row.unpaid_count||0) });
+  } catch (err) { console.error('purchases summary error:', err); res.status(500).json({ error:'purchases_summary_failed' }); }
+});
+app.get('/api/purchases/overdue', authRequired, async (req, res) => {
+  try {
+    const rows = (await pool.query(`SELECT p.id,p.purchase_no,p.purchase_date,s.name AS supplier_name,p.total_amount,p.paid_amount,p.remaining_amount,p.due_date,p.payment_status FROM purchases p LEFT JOIN suppliers s ON s.id=p.supplier_id WHERE p.payment_status <> '已付款' AND p.due_date IS NOT NULL AND p.due_date <> '' AND CAST(p.due_date AS DATE) < CURRENT_DATE ORDER BY p.due_date ASC`)).rows;
+    res.json({ rows });
+  } catch (err) { console.error('purchases overdue error:', err); res.status(500).json({ error:'purchases_overdue_failed' }); }
+});
+app.get('/api/equipment/search', authRequired, async (req, res) => {
+  try {
+    const { keyword = '', category = '', date_from = '', date_to = '', cost_min = '', cost_max = '', price_min = '', price_max = '', profit_min = '', profit_max = '' } = req.query;
+    const conditions = [];
+    const values = [];
+    if (keyword) {
+      values.push(`%${keyword}%`);
+      const i = values.length;
+      conditions.push(`(e.code ILIKE $${i} OR COALESCE(e.category,'') ILIKE $${i} OR COALESCE(e.name,'') ILIKE $${i} OR COALESCE(e.spec,'') ILIKE $${i} OR COALESCE(e.note,'') ILIKE $${i})`);
+    }
+    pushCondition(conditions, values, 'e.category = ?', category);
+    if(date_from){ values.push(date_from); conditions.push(`e.created_at::DATE >= $${values.length}::DATE`); }
+    if(date_to){ values.push(date_to); conditions.push(`e.created_at::DATE <= $${values.length}::DATE`); }
+    [['e.cost >= ?', toInt(cost_min)], ['e.cost <= ?', toInt(cost_max)], ['e.price >= ?', toInt(price_min)], ['e.price <= ?', toInt(price_max)], ['e.profit >= ?', toInt(profit_min)], ['e.profit <= ?', toInt(profit_max)]].forEach(([sql,v])=>pushCondition(conditions, values, sql, v));
+    const whereSql = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const rows = (await pool.query(`SELECT e.id,e.code,e.category,e.name,e.spec,e.cost,e.price,e.profit,e.note,e.link,e.created_at,e.updated_at FROM equipment e ${whereSql} ORDER BY e.created_at DESC,e.id DESC`, values)).rows;
+    res.json({ filters:{ keyword,category,date_from,date_to,cost_min,cost_max,price_min,price_max,profit_min,profit_max }, rows });
+  } catch (err) { console.error('equipment search error:', err); res.status(500).json({ error:'equipment_search_failed' }); }
+});
+app.get('/api/equipment/summary', authRequired, async (req, res) => {
+  try {
+    const row = (await pool.query(`SELECT COUNT(*) AS total_count, COUNT(*) FILTER (WHERE DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_DATE)) AS new_this_month, COALESCE(AVG(price),0) AS avg_price, COALESCE(AVG(profit),0) AS avg_profit, COUNT(*) FILTER (WHERE profit >= 1000) AS high_profit_count FROM equipment`)).rows[0] || {};
+    res.json({ total_count:Number(row.total_count||0), new_this_month:Number(row.new_this_month||0), avg_price:Number(row.avg_price||0), avg_profit:Number(row.avg_profit||0), high_profit_count:Number(row.high_profit_count||0) });
+  } catch (err) { console.error('equipment summary error:', err); res.status(500).json({ error:'equipment_summary_failed' }); }
+});
 
 app.get('/api/serials/next', authRequired, async (req,res) => res.json({ doc_no: await nextDocNo(req.query.type || 'quote') }));
 
 app.get('/api/quotes', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM quotes ORDER BY id DESC`)).rows));
-app.get('/api/quotes/:id', authRequired, async (req,res) => {
+app.get('/api/quotes/:id', authRequired, requireNumericId, async (req,res,next) => {
   const q = await pool.query(`SELECT * FROM quotes WHERE id=$1`, [req.params.id]);
   if(!q.rows.length) return res.status(404).json({ error:'not found' });
   const items = await pool.query(`SELECT * FROM quote_items WHERE quote_id=$1 ORDER BY item_order ASC,id ASC`, [req.params.id]);
@@ -464,49 +557,49 @@ async function saveQuote(id, body){
   return q;
 }
 app.post('/api/quotes', authRequired, adminRequired, async (req,res) => { const q = await saveQuote(null, req.body); res.json({ ok:true, id:q.id }); });
-app.put('/api/quotes/:id', authRequired, adminRequired, async (req,res) => { const q = await saveQuote(req.params.id, req.body); res.json({ ok:true, id:q.id }); });
-app.delete('/api/quotes/:id', authRequired, adminRequired, async (req,res) => { await pool.query(`DELETE FROM quotes WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
+app.put('/api/quotes/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => { const q = await saveQuote(req.params.id, req.body); res.json({ ok:true, id:q.id }); });
+app.delete('/api/quotes/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => { await pool.query(`DELETE FROM quotes WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
 
 app.get('/api/quote-tracking', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM quotes ORDER BY id DESC`)).rows));
-app.put('/api/quote-tracking/:id', authRequired, adminRequired, async (req,res) => {
+app.put('/api/quote-tracking/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => {
   const d=req.body;
   const r = await pool.query(`UPDATE quotes SET sign_status=$1,progress=$2 WHERE id=$3 RETURNING *`, [d.sign_status||'尚未簽核', d.progress||'待安排', req.params.id]);
   res.json(r.rows[0]);
 });
 
 app.get('/api/contracts', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM contracts ORDER BY id DESC`)).rows));
-app.get('/api/contracts/:id', authRequired, async (req,res) => { const r=await pool.query(`SELECT * FROM contracts WHERE id=$1`, [req.params.id]); if(!r.rows.length) return res.status(404).json({error:'not found'}); res.json(r.rows[0]); });
+app.get('/api/contracts/:id', authRequired, requireNumericId, async (req,res,next) => { const r=await pool.query(`SELECT * FROM contracts WHERE id=$1`, [req.params.id]); if(!r.rows.length) return res.status(404).json({error:'not found'}); res.json(r.rows[0]); });
 app.post('/api/contracts', authRequired, adminRequired, async (req,res) => {
   const d=req.body;
   const r=await pool.query(`INSERT INTO contracts (doc_no,doc_date,client_id,contract_name,scope,frequency,amount,terms) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`, [d.doc_no||'', d.doc_date||'', d.client_id||null, d.contract_name||'', d.scope||'', d.frequency||'', Number(d.amount||0), d.terms||'']);
   res.json(r.rows[0]);
 });
-app.put('/api/contracts/:id', authRequired, adminRequired, async (req,res) => {
+app.put('/api/contracts/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => {
   const d=req.body;
   const r=await pool.query(`UPDATE contracts SET doc_no=$1,doc_date=$2,client_id=$3,contract_name=$4,scope=$5,frequency=$6,amount=$7,terms=$8 WHERE id=$9 RETURNING *`, [d.doc_no||'', d.doc_date||'', d.client_id||null, d.contract_name||'', d.scope||'', d.frequency||'', Number(d.amount||0), d.terms||'', req.params.id]);
   res.json(r.rows[0]);
 });
-app.delete('/api/contracts/:id', authRequired, adminRequired, async (req,res) => { await pool.query(`DELETE FROM contracts WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
+app.delete('/api/contracts/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => { await pool.query(`DELETE FROM contracts WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
 
 app.get('/api/acceptances', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM acceptances ORDER BY id DESC`)).rows));
-app.get('/api/acceptances/:id', authRequired, async (req,res) => { const r=await pool.query(`SELECT * FROM acceptances WHERE id=$1`, [req.params.id]); if(!r.rows.length) return res.status(404).json({error:'not found'}); res.json(r.rows[0]); });
+app.get('/api/acceptances/:id', authRequired, requireNumericId, async (req,res,next) => { const r=await pool.query(`SELECT * FROM acceptances WHERE id=$1`, [req.params.id]); if(!r.rows.length) return res.status(404).json({error:'not found'}); res.json(r.rows[0]); });
 app.post('/api/acceptances', authRequired, adminRequired, async (req,res) => {
   const d=req.body;
   const r=await pool.query(`INSERT INTO acceptances (doc_no,doc_date,client_id,content,note) VALUES ($1,$2,$3,$4,$5) RETURNING *`, [d.doc_no||'', d.doc_date||'', d.client_id||null, d.content||'', d.note||'']);
   res.json(r.rows[0]);
 });
-app.put('/api/acceptances/:id', authRequired, adminRequired, async (req,res) => {
+app.put('/api/acceptances/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => {
   const d=req.body;
   const r=await pool.query(`UPDATE acceptances SET doc_no=$1,doc_date=$2,client_id=$3,content=$4,note=$5 WHERE id=$6 RETURNING *`, [d.doc_no||'', d.doc_date||'', d.client_id||null, d.content||'', d.note||'', req.params.id]);
   res.json(r.rows[0]);
 });
-app.delete('/api/acceptances/:id', authRequired, adminRequired, async (req,res) => { await pool.query(`DELETE FROM acceptances WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
+app.delete('/api/acceptances/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => { await pool.query(`DELETE FROM acceptances WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
 
 app.get('/api/purchases', authRequired, async (req,res) => {
   const r = await pool.query(`SELECT p.*, s.name AS supplier_name, q.quote_no FROM purchases p LEFT JOIN suppliers s ON s.id=p.supplier_id LEFT JOIN quotes q ON q.id=p.quote_id ORDER BY p.id DESC`);
   res.json(r.rows);
 });
-app.get('/api/purchases/:id', authRequired, async (req,res) => {
+app.get('/api/purchases/:id', authRequired, requireNumericId, async (req,res,next) => {
   const p = await pool.query(`SELECT * FROM purchases WHERE id=$1`, [req.params.id]);
   if(!p.rows.length) return res.status(404).json({ error:'not found' });
   const items = await pool.query(`SELECT * FROM purchase_items WHERE purchase_id=$1 ORDER BY item_order ASC,id ASC`, [req.params.id]);
@@ -538,8 +631,8 @@ async function savePurchase(id, body){
   return p;
 }
 app.post('/api/purchases', authRequired, adminRequired, async (req,res) => { const p = await savePurchase(null, req.body); res.json({ ok:true, id:p.id }); });
-app.put('/api/purchases/:id', authRequired, adminRequired, async (req,res) => { const p = await savePurchase(req.params.id, req.body); res.json({ ok:true, id:p.id }); });
-app.delete('/api/purchases/:id', authRequired, adminRequired, async (req,res) => { await pool.query(`DELETE FROM purchases WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
+app.put('/api/purchases/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => { const p = await savePurchase(req.params.id, req.body); res.json({ ok:true, id:p.id }); });
+app.delete('/api/purchases/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => { await pool.query(`DELETE FROM purchases WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
 app.get('/api/payables', authRequired, async (req,res) => {
   const r = await pool.query(`SELECT p.id,p.purchase_no,p.payment_status,p.payment_method,p.due_date,p.paid_date,p.total_amount,p.paid_amount,p.remaining_amount,s.name AS supplier_name,p.created_at FROM purchases p LEFT JOIN suppliers s ON s.id=p.supplier_id ORDER BY COALESCE(p.due_date,''), p.id DESC`);
   res.json(r.rows);
@@ -574,126 +667,12 @@ app.get('/api/analysis/:type', authRequired, async (req,res) => {
 
 
 
-app.get('/api/quotes/search', authRequired, async (req, res) => {
-  try {
-    const { keyword = '', date_from = '', date_to = '', client_id = '', sign_status = '', progress = '', total_min = '', total_max = '' } = req.query;
-    const conditions = [];
-    const values = [];
-    if (keyword) {
-      values.push(`%${keyword}%`);
-      const idx = values.length;
-      conditions.push(`(q.quote_no ILIKE $${idx} OR q.project_name ILIKE $${idx} OR COALESCE(c.client_name, '') ILIKE $${idx})`);
-    }
-    buildDateRangeConditions('q.quote_date', { date_from, date_to }, conditions, values);
-    pushCondition(conditions, values, 'q.client_id = ?', toInt(client_id));
-    pushCondition(conditions, values, 'q.sign_status = ?', sign_status);
-    pushCondition(conditions, values, 'q.progress = ?', progress);
-    if (total_min !== '') { values.push(toInt(total_min, 0)); conditions.push(`q.total >= $${values.length}`); }
-    if (total_max !== '') { values.push(toInt(total_max, 0)); conditions.push(`q.total <= $${values.length}`); }
-    const whereSql = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    const sql = `SELECT q.id, q.quote_no, q.quote_date, q.client_id, c.client_name, q.project_name, q.subtotal, q.tax, q.total, q.sign_status, q.progress, q.created_at, q.updated_at FROM quotes q LEFT JOIN clients c ON c.id = q.client_id ${whereSql} ORDER BY q.quote_date DESC, q.id DESC`;
-    const rows = (await pool.query(sql, values)).rows;
-    res.json({ filters: { keyword, date_from, date_to, client_id, sign_status, progress, total_min, total_max }, rows });
-  } catch (err) {
-    console.error('quotes search error:', err);
-    res.status(500).json({ error: 'quotes_search_failed' });
-  }
-});
 
-app.get('/api/quotes/summary', authRequired, async (req, res) => {
-  try {
-    const sql = `SELECT COUNT(*) FILTER (WHERE quote_date = CURRENT_DATE::TEXT) AS today_count, COUNT(*) FILTER (WHERE DATE_TRUNC('month', CAST(quote_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)) AS month_count, COALESCE(SUM(total) FILTER (WHERE DATE_TRUNC('month', CAST(quote_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)), 0) AS month_total, COALESCE(SUM(total) FILTER (WHERE sign_status = '同意施作' AND DATE_TRUNC('month', CAST(quote_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)), 0) AS approved_total, COUNT(*) FILTER (WHERE sign_status = '尚未簽核') AS unsigned_count, COUNT(*) FILTER (WHERE progress = '待安排') AS pending_count FROM quotes`;
-    const row = (await pool.query(sql)).rows[0] || {};
-    res.json({ today_count: Number(row.today_count || 0), month_count: Number(row.month_count || 0), month_total: Number(row.month_total || 0), approved_total: Number(row.approved_total || 0), unsigned_count: Number(row.unsigned_count || 0), pending_count: Number(row.pending_count || 0) });
-  } catch (err) {
-    console.error('quotes summary error:', err);
-    res.status(500).json({ error: 'quotes_summary_failed' });
-  }
-});
 
-app.get('/api/purchases/search', authRequired, async (req, res) => {
-  try {
-    const { keyword = '', date_from = '', date_to = '', supplier_id = '', payment_status = '', payment_method = '', total_min = '', total_max = '' } = req.query;
-    const conditions = [];
-    const values = [];
-    if (keyword) {
-      values.push(`%${keyword}%`);
-      const idx = values.length;
-      conditions.push(`(p.purchase_no ILIKE $${idx} OR COALESCE(s.name, '') ILIKE $${idx} OR COALESCE(p.site_name, '') ILIKE $${idx} OR COALESCE(q.quote_no, '') ILIKE $${idx})`);
-    }
-    buildDateRangeConditions('p.purchase_date', { date_from, date_to }, conditions, values);
-    pushCondition(conditions, values, 'p.supplier_id = ?', toInt(supplier_id));
-    pushCondition(conditions, values, 'p.payment_status = ?', payment_status);
-    pushCondition(conditions, values, 'p.payment_method = ?', payment_method);
-    if (total_min !== '') { values.push(toInt(total_min, 0)); conditions.push(`p.total_amount >= $${values.length}`); }
-    if (total_max !== '') { values.push(toInt(total_max, 0)); conditions.push(`p.total_amount <= $${values.length}`); }
-    const whereSql = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    const sql = `SELECT p.id, p.purchase_no, p.purchase_date, p.supplier_id, s.name AS supplier_name, p.quote_id, q.quote_no, p.site_name, p.total_amount, p.paid_amount, p.remaining_amount, p.payment_status, p.payment_method, p.due_date, p.paid_date, p.created_at, p.updated_at FROM purchases p LEFT JOIN suppliers s ON s.id = p.supplier_id LEFT JOIN quotes q ON q.id = p.quote_id ${whereSql} ORDER BY p.purchase_date DESC, p.id DESC`;
-    const rows = (await pool.query(sql, values)).rows;
-    res.json({ filters: { keyword, date_from, date_to, supplier_id, payment_status, payment_method, total_min, total_max }, rows });
-  } catch (err) {
-    console.error('purchases search error:', err);
-    res.status(500).json({ error: 'purchases_search_failed' });
-  }
-});
 
-app.get('/api/purchases/summary', authRequired, async (req, res) => {
-  try {
-    const sql = `SELECT COUNT(*) FILTER (WHERE DATE_TRUNC('month', CAST(purchase_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)) AS month_count, COALESCE(SUM(total_amount) FILTER (WHERE DATE_TRUNC('month', CAST(purchase_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)), 0) AS month_total, COALESCE(SUM(paid_amount), 0) AS paid_total, COALESCE(SUM(remaining_amount), 0) AS unpaid_total, COUNT(*) FILTER (WHERE payment_status <> '已付款') AS unpaid_count FROM purchases`;
-    const row = (await pool.query(sql)).rows[0] || {};
-    res.json({ month_count: Number(row.month_count || 0), month_total: Number(row.month_total || 0), paid_total: Number(row.paid_total || 0), unpaid_total: Number(row.unpaid_total || 0), unpaid_count: Number(row.unpaid_count || 0) });
-  } catch (err) {
-    console.error('purchases summary error:', err);
-    res.status(500).json({ error: 'purchases_summary_failed' });
-  }
-});
 
-app.get('/api/purchases/overdue', authRequired, async (req, res) => {
-  try {
-    const sql = `SELECT p.id, p.purchase_no, p.purchase_date, s.name AS supplier_name, p.total_amount, p.paid_amount, p.remaining_amount, p.due_date, p.payment_status FROM purchases p LEFT JOIN suppliers s ON s.id = p.supplier_id WHERE p.payment_status <> '已付款' AND p.due_date IS NOT NULL AND p.due_date <> '' AND CAST(p.due_date AS DATE) < CURRENT_DATE ORDER BY p.due_date ASC`;
-    const rows = (await pool.query(sql)).rows;
-    res.json({ rows });
-  } catch (err) {
-    console.error('purchases overdue error:', err);
-    res.status(500).json({ error: 'purchases_overdue_failed' });
-  }
-});
 
-app.get('/api/equipment/search', authRequired, async (req, res) => {
-  try {
-    const { keyword = '', category = '', date_from = '', date_to = '', cost_min = '', cost_max = '', price_min = '', price_max = '', profit_min = '', profit_max = '' } = req.query;
-    const conditions = [];
-    const values = [];
-    if (keyword) {
-      values.push(`%${keyword}%`);
-      const idx = values.length;
-      conditions.push(`(e.code ILIKE $${idx} OR COALESCE(e.category, '') ILIKE $${idx} OR COALESCE(e.name, '') ILIKE $${idx} OR COALESCE(e.spec, '') ILIKE $${idx} OR COALESCE(e.note, '') ILIKE $${idx})`);
-    }
-    pushCondition(conditions, values, 'e.category = ?', category);
-    if (date_from) { values.push(date_from); conditions.push(`e.created_at::DATE >= $${values.length}::DATE`); }
-    if (date_to) { values.push(date_to); conditions.push(`e.created_at::DATE <= $${values.length}::DATE`); }
-    const ranges = [['e.cost >= ?', toInt(cost_min)], ['e.cost <= ?', toInt(cost_max)], ['e.price >= ?', toInt(price_min)], ['e.price <= ?', toInt(price_max)], ['e.profit >= ?', toInt(profit_min)], ['e.profit <= ?', toInt(profit_max)]];
-    for (const [sql, value] of ranges) pushCondition(conditions, values, sql, value);
-    const whereSql = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    const sql = `SELECT e.id, e.code, e.category, e.name, e.spec, e.cost, e.price, e.profit, e.note, e.link, e.created_at, e.updated_at FROM equipment e ${whereSql} ORDER BY e.created_at DESC, e.id DESC`;
-    const rows = (await pool.query(sql, values)).rows;
-    res.json({ filters: { keyword, category, date_from, date_to, cost_min, cost_max, price_min, price_max, profit_min, profit_max }, rows });
-  } catch (err) {
-    console.error('equipment search error:', err);
-    res.status(500).json({ error: 'equipment_search_failed' });
-  }
-});
 
-app.get('/api/equipment/summary', authRequired, async (req, res) => {
-  try {
-    const sql = `SELECT COUNT(*) AS total_count, COUNT(*) FILTER (WHERE DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_DATE)) AS new_this_month, COALESCE(AVG(price), 0) AS avg_price, COALESCE(AVG(profit), 0) AS avg_profit, COUNT(*) FILTER (WHERE profit >= 1000) AS high_profit_count FROM equipment`;
-    const row = (await pool.query(sql)).rows[0] || {};
-    res.json({ total_count: Number(row.total_count || 0), new_this_month: Number(row.new_this_month || 0), avg_price: Number(row.avg_price || 0), avg_profit: Number(row.avg_profit || 0), high_profit_count: Number(row.high_profit_count || 0) });
-  } catch (err) {
-    console.error('equipment summary error:', err);
-    res.status(500).json({ error: 'equipment_summary_failed' });
-  }
-});
 
 
 app.get('/api/export/clients', authRequired, async (req,res) => {
@@ -798,24 +777,24 @@ app.post('/api/import/purchases', authRequired, adminRequired, upload.single('fi
   res.json({ imported });
 });
 
-app.get('/api/quotes/:id/pdf', authRequired, async (req,res) => {
+app.get('/api/quotes/:id', authRequired, requireNumericId, async (req,res,next) => {
   const q = (await pool.query(`SELECT * FROM quotes WHERE id=$1`, [req.params.id])).rows[0];
   const items = (await pool.query(`SELECT * FROM quote_items WHERE quote_id=$1 ORDER BY item_order ASC`, [req.params.id])).rows;
   if(!q) return res.status(404).json({ error:'not found' });
   const lines = [`單號：${q.quote_no||''}`, `日期：${q.quote_date||''}`, `工程：${q.project_name||''}`, `合計：NT$ ${q.total||0}`, '', '項目：', ...items.map(x=>`${x.item_order}. ${x.item_desc||''} ${x.spec||''} x${x.qty||0} / NT$ ${x.unit_price||0}`)];
   createPdf(res, '工程報價單', lines);
 });
-app.get('/api/contracts/:id/pdf', authRequired, async (req,res) => {
+app.get('/api/contracts/:id', authRequired, requireNumericId, async (req,res,next) => {
   const q = (await pool.query(`SELECT * FROM contracts WHERE id=$1`, [req.params.id])).rows[0];
   if(!q) return res.status(404).json({ error:'not found' });
   createPdf(res, '維護合約單', [`單號：${q.doc_no||''}`, `日期：${q.doc_date||''}`, `合約：${q.contract_name||''}`, `金額：NT$ ${q.amount||0}`, '', q.scope||'', '', q.terms||'']);
 });
-app.get('/api/acceptances/:id/pdf', authRequired, async (req,res) => {
+app.get('/api/acceptances/:id', authRequired, requireNumericId, async (req,res,next) => {
   const q = (await pool.query(`SELECT * FROM acceptances WHERE id=$1`, [req.params.id])).rows[0];
   if(!q) return res.status(404).json({ error:'not found' });
   createPdf(res, '驗收單', [`單號：${q.doc_no||''}`, `日期：${q.doc_date||''}`, '', q.content||'', '', q.note||'']);
 });
-app.get('/api/purchases/:id/pdf', authRequired, async (req,res) => {
+app.get('/api/purchases/:id', authRequired, requireNumericId, async (req,res,next) => {
   const q = (await pool.query(`SELECT * FROM purchases WHERE id=$1`, [req.params.id])).rows[0];
   const items = (await pool.query(`SELECT * FROM purchase_items WHERE purchase_id=$1 ORDER BY item_order ASC`, [req.params.id])).rows;
   if(!q) return res.status(404).json({ error:'not found' });
