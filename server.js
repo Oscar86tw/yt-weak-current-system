@@ -53,6 +53,8 @@ async function initDb(){
   await pool.query(`CREATE TABLE IF NOT EXISTS contracts (id SERIAL PRIMARY KEY, doc_no TEXT, doc_date TEXT, client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL, contract_name TEXT, scope TEXT, frequency TEXT, amount INTEGER DEFAULT 0, terms TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS acceptances (id SERIAL PRIMARY KEY, doc_no TEXT, doc_date TEXT, client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL, content TEXT, note TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS purchases (id SERIAL PRIMARY KEY, purchase_no TEXT, purchase_date TEXT, supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL, quote_id INTEGER REFERENCES quotes(id) ON DELETE SET NULL, site_name TEXT, memo TEXT, subtotal_amount INTEGER DEFAULT 0, tax_amount INTEGER DEFAULT 0, total_amount INTEGER DEFAULT 0, payment_status TEXT DEFAULT '未付款', payment_method TEXT DEFAULT '現金', due_date TEXT, paid_amount INTEGER DEFAULT 0, remaining_amount INTEGER DEFAULT 0, paid_date TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS system_settings (id INTEGER PRIMARY KEY DEFAULT 1, company_name TEXT, company_tag TEXT, company_phone TEXT, company_address TEXT, quote_prefix TEXT DEFAULT 'YA', contract_prefix TEXT DEFAULT 'YB', acceptance_prefix TEXT DEFAULT 'YC', purchase_prefix TEXT DEFAULT 'PI', serial_digits INTEGER DEFAULT 3, smtp_host TEXT, smtp_port TEXT, smtp_user TEXT, smtp_pass TEXT, smtp_secure BOOLEAN DEFAULT FALSE, mail_from TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+  await pool.query(`INSERT INTO system_settings (id, company_name, company_tag, company_phone, company_address) VALUES (1,'昱拓弱電有限公司','弱電系統維修｜監控｜門禁｜對講｜車道停管｜BA中央監控','0960-770-512','桃園市中壢區榮安一街490號13樓') ON CONFLICT (id) DO NOTHING`);
   await pool.query(`CREATE TABLE IF NOT EXISTS purchase_items (id SERIAL PRIMARY KEY, purchase_id INTEGER REFERENCES purchases(id) ON DELETE CASCADE, item_order INTEGER, equipment_id INTEGER REFERENCES equipment(id) ON DELETE SET NULL, item_name TEXT, spec TEXT, qty INTEGER DEFAULT 0, unit TEXT, unit_cost INTEGER DEFAULT 0, item_total INTEGER DEFAULT 0)`);
   await ensureAdmin();
 }
@@ -250,6 +252,18 @@ app.delete('/api/purchases/:id', authRequired, adminRequired, async (req,res) =>
 app.get('/api/payables', authRequired, async (req,res) => {
   const r = await pool.query(`SELECT p.id,p.purchase_no,p.payment_status,p.payment_method,p.due_date,p.paid_date,p.total_amount,p.paid_amount,p.remaining_amount,s.name AS supplier_name FROM purchases p LEFT JOIN suppliers s ON s.id=p.supplier_id ORDER BY COALESCE(p.due_date,''), p.id DESC`);
   res.json(r.rows);
+});
+
+
+app.get('/api/system-settings', authRequired, async (req,res) => {
+  const r = await pool.query(`SELECT * FROM system_settings WHERE id=1`);
+  res.json(r.rows[0] || {});
+});
+app.put('/api/system-settings', authRequired, adminRequired, async (req,res) => {
+  const d=req.body;
+  const r = await pool.query(`UPDATE system_settings SET company_name=$1,company_tag=$2,company_phone=$3,company_address=$4,quote_prefix=$5,contract_prefix=$6,acceptance_prefix=$7,purchase_prefix=$8,serial_digits=$9,smtp_host=$10,smtp_port=$11,smtp_user=$12,smtp_pass=$13,smtp_secure=$14,mail_from=$15,updated_at=CURRENT_TIMESTAMP WHERE id=1 RETURNING *`,
+    [d.company_name||'',d.company_tag||'',d.company_phone||'',d.company_address||'',d.quote_prefix||'YA',d.contract_prefix||'YB',d.acceptance_prefix||'YC',d.purchase_prefix||'PI',Number(d.serial_digits||3),d.smtp_host||'',d.smtp_port||'',d.smtp_user||'',d.smtp_pass||'',!!d.smtp_secure,d.mail_from||'']);
+  res.json(r.rows[0]);
 });
 
 app.get('/', (req,res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
