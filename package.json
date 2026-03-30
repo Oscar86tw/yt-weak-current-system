@@ -1,6 +1,6 @@
 {
   "name": "yt-weak-current-v3-5-analysis",
-  "version": "3.5.4",
+  "version": "3.5.5",
   "main": "server.js",
   "license": "UNLICENSED",
   "scripts": {
