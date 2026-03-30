@@ -1,12 +1,49 @@
 <!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>設備｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"></head><body><div id="app"></div><script src="/js/common.js"></script><script>
-document.getElementById('app').innerHTML=shell('資料建立 / 設備',`<div class="split"><div class="form-panel"><h2 style="margin-top:0;">設備表單 <span class="badge" id="mode">新增</span></h2><input type="hidden" id="docId"><div class="row3"><div><label>編號</label><input id="code" readonly></div><div><label>類別</label><select id="category"></select></div><div><label>名稱</label><input id="name"></div></div><label>規格</label><textarea id="spec"></textarea><div class="row"><div><label>成本</label><input id="cost" value="0"></div><div><label>售價</label><input id="price" value="0"></div></div><div class="row"><div><label>利潤</label><input id="profit" readonly></div><div><label>連結</label><input id="link"></div></div><label>備註</label><textarea id="note"></textarea><div class="toolbar"><button id="saveBtn">存檔</button><button class="light" id="clearBtn">清空</button></div></div><div class="list-panel"><div class="toolbar"><input id="search" placeholder="搜尋設備"></div><div id="list"></div></div></div>`);
-let rows=[], cats=[];function calc(){const c=Number(cost.value||0),p=Number(price.value||0);profit.value=money(p-c)}function renderCat(){category.innerHTML='<option value="">請選擇類別</option>'+cats.map(c=>`<option value="${c.name}">${c.code}｜${c.name}</option>`).join('');}
+document.getElementById('app').innerHTML=shell('資料建立 / 設備',`<div class="split"><div class="form-panel"><h2 style="margin-top:0;">設備表單 <span class="badge" id="mode">新增</span></h2><input type="hidden" id="docId"><div class="row3"><div><label>編號</label><input id="code" readonly></div><div><label>類別</label><select id="category"></select></div><div><label>名稱</label><input id="equipmentName"></div></div><label>規格</label><textarea id="spec"></textarea><div class="row"><div><label>成本</label><input id="cost" value="0"></div><div><label>售價</label><input id="price" value="0"></div></div><div class="row"><div><label>利潤</label><input id="profit" readonly></div><div><label>連結</label><input id="link"></div></div><label>備註</label><textarea id="note"></textarea><div class="toolbar"><button id="saveBtn">存檔</button><button class="light" id="clearBtn">清空</button></div></div><div class="list-panel"><div class="toolbar"><input id="search" placeholder="搜尋設備"></div><div id="list"></div></div></div>`);
+let rows=[], cats=[];
+function calc(){const c=Number(cost.value||0),p=Number(price.value||0);profit.value=money(p-c)}
+function renderCat(){category.innerHTML='<option value="">請選擇類別</option>'+cats.map(c=>`<option value="${c.name}">${c.code}｜${c.name}</option>`).join('');}
 function monthGroup(rows, renderFn){const groups={};rows.forEach(r=>{const d=(r.created_at||'').slice(0,7)||'未分類';(groups[d]=groups[d]||[]).push(r)});return Object.keys(groups).sort().reverse().map(k=>`<div class="month-group"><div class="month-title">${k}</div>${groups[k].map(renderFn).join('')}</div>`).join('')}
-async function load(){rows=await API.listEquipment();cats=await API.getEquipmentCategories();renderCat();if(!docId.value){const next=await API.nextNo('equipment');code.value=next.doc_no;}render();}
-function render(){const k=search.value.trim().toLowerCase();const result=rows.filter(r=>`${r.code||''} ${r.name||''} ${r.spec||''} ${r.category||''}`.toLowerCase().includes(k)||!k);list.innerHTML=result.length?monthGroup(result,r=>`<div class="list-item"><strong>${r.code||'未編號'}｜${r.name}</strong><div>類別：${r.category||'—'}　規格：${r.spec||'—'}</div><div>成本：NT$ ${money(r.cost||0)}　售價：NT$ ${money(r.price||0)}　利潤：NT$ ${money(r.profit||0)}</div><div class="toolbar"><button onclick="editRow(${r.id})">修改</button><button class="danger" onclick="removeRow(${r.id},'${(r.code||'').replace(/'/g,'')}')">刪除</button></div></div>`):'<div class="muted">尚無設備資料</div>';}
-function editRow(id){const r=rows.find(x=>x.id===id);if(!r)return;docId.value=r.id;code.value=r.code||'';category.value=r.category||'';name.value=r.name||'';spec.value=r.spec||'';cost.value=r.cost||0;price.value=r.price||0;link.value=r.link||'';note.value=r.note||'';calc();mode.textContent='修改';}
-async function clearForm(){['docId','name','spec','link','note'].forEach(id=>window[id].value='');category.value='';cost.value='0';price.value='0';profit.value='0';mode.textContent='新增';const next=await API.nextNo('equipment');code.value=next.doc_no;}
-async function save(){const p={code:code.value.trim(),category:category.value,name:name.value.trim(),spec:spec.value.trim(),cost:Number(cost.value||0),price:Number(price.value||0),note:note.value.trim(),link:link.value.trim()};if(!p.category)return alert('請選擇類別');if(!p.name)return alert('請輸入設備名稱');if(docId.value) await API.updateEquipment(docId.value,p); else await API.createEquipment(p);await clearForm();load();}
-async function removeRow(id,codeText){if(!confirm(`確定刪除此設備資料？\n${codeText}`))return;await API.deleteEquipment(id);await clearForm();load();}
+async function load(){
+  try{
+    rows=await API.listEquipment();
+    cats=await API.getEquipmentCategories();
+    renderCat();
+    if(!docId.value){
+      const next=await API.nextNo('equipment');
+      code.value=next.doc_no||'EQ0001';
+    }
+    render();
+  }catch(err){alert('載入設備失敗：'+err.message)}
+}
+function render(){
+  const k=search.value.trim().toLowerCase();
+  const result=rows.filter(r=>`${r.code||''} ${r.name||''} ${r.spec||''} ${r.category||''}`.toLowerCase().includes(k)||!k);
+  list.innerHTML=result.length?monthGroup(result,r=>`<div class="list-item"><strong>${r.code||'未編號'}｜${r.name}</strong><div>類別：${r.category||'—'}　規格：${r.spec||'—'}</div><div>成本：NT$ ${money(r.cost||0)}　售價：NT$ ${money(r.price||0)}　利潤：NT$ ${money(r.profit||0)}</div><div class="toolbar"><button onclick="editRow(${r.id})">修改</button><button class="danger" onclick="removeRow(${r.id},'${(r.code||'').replace(/'/g,"\\'")}')">刪除</button></div></div>`):'<div class="muted">尚無設備資料</div>';
+}
+function editRow(id){
+  const r=rows.find(x=>x.id===id);if(!r)return;
+  docId.value=r.id;code.value=r.code||'';category.value=r.category||'';equipmentName.value=r.name||'';spec.value=r.spec||'';cost.value=r.cost||0;price.value=r.price||0;link.value=r.link||'';note.value=r.note||'';calc();mode.textContent='修改';
+}
+async function clearForm(){
+  ['docId','spec','link','note'].forEach(id=>window[id].value='');
+  equipmentName.value='';category.value='';cost.value='0';price.value='0';profit.value='0';mode.textContent='新增';
+  const next=await API.nextNo('equipment');code.value=next.doc_no||'EQ0001';
+}
+async function save(){
+  try{
+    const p={code:code.value.trim(),category:category.value,name:equipmentName.value.trim(),spec:spec.value.trim(),cost:Number(cost.value||0),price:Number(price.value||0),note:note.value.trim(),link:link.value.trim()};
+    if(!p.category)return alert('請選擇類別');
+    if(!p.name)return alert('請輸入設備名稱');
+    if(docId.value) await API.updateEquipment(docId.value,p); else await API.createEquipment(p);
+    await clearForm();load();
+  }catch(err){alert('設備存檔失敗：'+err.message)}
+}
+async function removeRow(id,codeText){
+  try{
+    if(!confirm(`確定刪除此設備資料？\n${codeText}`))return;
+    await API.deleteEquipment(id);await clearForm();load();
+  }catch(err){alert('刪除失敗：'+err.message)}
+}
 cost.oninput=calc;price.oninput=calc;saveBtn.onclick=save;clearBtn.onclick=clearForm;search.oninput=render;calc();load();
 </script></body></html>
