@@ -21,12 +21,12 @@ function hashPwd(s){ return crypto.createHash('sha256').update(String(s)).digest
 function ymdKey(){ const d = new Date(); return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`; }
 
 async function nextDocNo(type){
-  const map = { quote:'YA', contract:'YB', acceptance:'YC', purchase:'PI' };
+  const map = { quote:'YA', contract:'YB', acceptance:'YC', purchase:'PI', equipment:'EQ' };
   const target = {
     quote:{table:'quotes', col:'quote_no'},
     contract:{table:'contracts', col:'doc_no'},
     acceptance:{table:'acceptances', col:'doc_no'},
-    purchase:{table:'purchases', col:'purchase_no'}
+    purchase:{table:'purchases', col:'purchase_no'}, equipment:{table:'equipment', col:'code'}
   }[type] || {table:'quotes', col:'quote_no'};
   const prefix = map[type] || 'YA';
   const dateKey = ymdKey();
@@ -47,7 +47,7 @@ async function initDb(){
   await pool.query(`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK (role IN ('admin','viewer')), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS clients (id SERIAL PRIMARY KEY, client_name TEXT NOT NULL, tax_id TEXT, contact_person TEXT, phone TEXT, address TEXT, job_title TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS suppliers (id SERIAL PRIMARY KEY, name TEXT NOT NULL, tax_id TEXT, contact_person TEXT, phone TEXT, address TEXT, bank_info TEXT, note TEXT, is_favorite BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS equipment (id SERIAL PRIMARY KEY, code TEXT, name TEXT NOT NULL, spec TEXT, cost INTEGER DEFAULT 0, price INTEGER DEFAULT 0, profit INTEGER DEFAULT 0, note TEXT, link TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS equipment (id SERIAL PRIMARY KEY, code TEXT, category TEXT, name TEXT NOT NULL, spec TEXT, cost INTEGER DEFAULT 0, price INTEGER DEFAULT 0, profit INTEGER DEFAULT 0, note TEXT, link TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS quotes (id SERIAL PRIMARY KEY, quote_no TEXT, quote_date TEXT, client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL, project_name TEXT NOT NULL, subtotal INTEGER DEFAULT 0, tax INTEGER DEFAULT 0, total INTEGER DEFAULT 0, quote_desc TEXT, quote_terms TEXT, sign_status TEXT DEFAULT '尚未簽核', progress TEXT DEFAULT '待安排', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS quote_items (id SERIAL PRIMARY KEY, quote_id INTEGER REFERENCES quotes(id) ON DELETE CASCADE, item_order INTEGER, item_desc TEXT, qty INTEGER DEFAULT 0, unit_price INTEGER DEFAULT 0, item_total INTEGER DEFAULT 0)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS contracts (id SERIAL PRIMARY KEY, doc_no TEXT, doc_date TEXT, client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL, contract_name TEXT, scope TEXT, frequency TEXT, amount INTEGER DEFAULT 0, terms TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
@@ -55,6 +55,9 @@ async function initDb(){
   await pool.query(`CREATE TABLE IF NOT EXISTS purchases (id SERIAL PRIMARY KEY, purchase_no TEXT, purchase_date TEXT, supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL, quote_id INTEGER REFERENCES quotes(id) ON DELETE SET NULL, site_name TEXT, memo TEXT, subtotal_amount INTEGER DEFAULT 0, tax_amount INTEGER DEFAULT 0, total_amount INTEGER DEFAULT 0, payment_status TEXT DEFAULT '未付款', payment_method TEXT DEFAULT '現金', due_date TEXT, paid_amount INTEGER DEFAULT 0, remaining_amount INTEGER DEFAULT 0, paid_date TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS system_settings (id INTEGER PRIMARY KEY DEFAULT 1, company_name TEXT, company_tag TEXT, company_phone TEXT, company_address TEXT, quote_prefix TEXT DEFAULT 'YA', contract_prefix TEXT DEFAULT 'YB', acceptance_prefix TEXT DEFAULT 'YC', purchase_prefix TEXT DEFAULT 'PI', serial_digits INTEGER DEFAULT 3, smtp_host TEXT, smtp_port TEXT, smtp_user TEXT, smtp_pass TEXT, smtp_secure BOOLEAN DEFAULT FALSE, mail_from TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
   await pool.query(`INSERT INTO system_settings (id, company_name, company_tag, company_phone, company_address) VALUES (1,'昱拓弱電有限公司','弱電系統維修｜監控｜門禁｜對講｜車道停管｜BA中央監控','0960-770-512','桃園市中壢區榮安一街490號13樓') ON CONFLICT (id) DO NOTHING`);
+  await pool.query(`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS equipment_prefix TEXT DEFAULT 'EQ'`);
+  await pool.query(`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS equipment_categories TEXT`);
+  await pool.query(`ALTER TABLE equipment ADD COLUMN IF NOT EXISTS category TEXT`);
   await pool.query(`CREATE TABLE IF NOT EXISTS purchase_items (id SERIAL PRIMARY KEY, purchase_id INTEGER REFERENCES purchases(id) ON DELETE CASCADE, item_order INTEGER, equipment_id INTEGER REFERENCES equipment(id) ON DELETE SET NULL, item_name TEXT, spec TEXT, qty INTEGER DEFAULT 0, unit TEXT, unit_cost INTEGER DEFAULT 0, item_total INTEGER DEFAULT 0)`);
   await ensureAdmin();
 }
@@ -129,12 +132,12 @@ app.delete('/api/suppliers/:id', authRequired, adminRequired, async (req,res) =>
 app.get('/api/equipment', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM equipment ORDER BY id DESC`)).rows));
 app.post('/api/equipment', authRequired, adminRequired, async (req,res) => {
   const d=req.body; const profit=Number(d.price||0)-Number(d.cost||0);
-  const r = await pool.query(`INSERT INTO equipment (code,name,spec,cost,price,profit,note,link) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`, [d.code||'', d.name||'', d.spec||'', Number(d.cost||0), Number(d.price||0), profit, d.note||'', d.link||'']);
+  const r = await pool.query(`INSERT INTO equipment (code,category,name,spec,cost,price,profit,note,link) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, [d.code||'', d.category||'', d.name||'', d.spec||'', Number(d.cost||0), Number(d.price||0), profit, d.note||'', d.link||'']);
   res.json(r.rows[0]);
 });
 app.put('/api/equipment/:id', authRequired, adminRequired, async (req,res) => {
   const d=req.body; const profit=Number(d.price||0)-Number(d.cost||0);
-  const r = await pool.query(`UPDATE equipment SET code=$1,name=$2,spec=$3,cost=$4,price=$5,profit=$6,note=$7,link=$8 WHERE id=$9 RETURNING *`, [d.code||'', d.name||'', d.spec||'', Number(d.cost||0), Number(d.price||0), profit, d.note||'', d.link||'', req.params.id]);
+  const r = await pool.query(`UPDATE equipment SET code=$1,category=$2,name=$3,spec=$4,cost=$5,price=$6,profit=$7,note=$8,link=$9 WHERE id=$10 RETURNING *`, [d.code||'', d.category||'', d.name||'', d.spec||'', Number(d.cost||0), Number(d.price||0), profit, d.note||'', d.link||'', req.params.id]);
   res.json(r.rows[0]);
 });
 app.delete('/api/equipment/:id', authRequired, adminRequired, async (req,res) => { await pool.query(`DELETE FROM equipment WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
@@ -261,8 +264,8 @@ app.get('/api/system-settings', authRequired, async (req,res) => {
 });
 app.put('/api/system-settings', authRequired, adminRequired, async (req,res) => {
   const d=req.body;
-  const r = await pool.query(`UPDATE system_settings SET company_name=$1,company_tag=$2,company_phone=$3,company_address=$4,quote_prefix=$5,contract_prefix=$6,acceptance_prefix=$7,purchase_prefix=$8,serial_digits=$9,smtp_host=$10,smtp_port=$11,smtp_user=$12,smtp_pass=$13,smtp_secure=$14,mail_from=$15,updated_at=CURRENT_TIMESTAMP WHERE id=1 RETURNING *`,
-    [d.company_name||'',d.company_tag||'',d.company_phone||'',d.company_address||'',d.quote_prefix||'YA',d.contract_prefix||'YB',d.acceptance_prefix||'YC',d.purchase_prefix||'PI',Number(d.serial_digits||3),d.smtp_host||'',d.smtp_port||'',d.smtp_user||'',d.smtp_pass||'',!!d.smtp_secure,d.mail_from||'']);
+  const r = await pool.query(`UPDATE system_settings SET company_name=$1,company_tag=$2,company_phone=$3,company_address=$4,quote_prefix=$5,contract_prefix=$6,acceptance_prefix=$7,purchase_prefix=$8,equipment_prefix=$9,serial_digits=$10,equipment_categories=$11,smtp_host=$12,smtp_port=$13,smtp_user=$14,smtp_pass=$15,smtp_secure=$16,mail_from=$17,updated_at=CURRENT_TIMESTAMP WHERE id=1 RETURNING *`,
+    [d.company_name||'',d.company_tag||'',d.company_phone||'',d.company_address||'',d.quote_prefix||'YA',d.contract_prefix||'YB',d.acceptance_prefix||'YC',d.purchase_prefix||'PI',d.equipment_prefix||'EQ',Number(d.serial_digits||3),d.equipment_categories||'',d.smtp_host||'',d.smtp_port||'',d.smtp_user||'',d.smtp_pass||'',!!d.smtp_secure,d.mail_from||'']);
   res.json(r.rows[0]);
 });
 
