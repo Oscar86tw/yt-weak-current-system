@@ -53,15 +53,15 @@ box.innerHTML = state.items.map((it,i)=>`
 }
 function renderPreview(){ const d=collect(); const s=suppliers.find(x=>String(x.id)===String(d.supplier_id)); const q=quotes.find(x=>String(x.id)===String(d.quote_id)); const t=totals(); preview.innerHTML=`
 <div class="doc-head"><div><h2>昱拓弱電有限公司</h2><div class="doc-sub">弱電系統維修｜監控｜門禁｜對講｜車道停管｜BA中央監控<br>電話：0960-770-512<br>地址：桃園市中壢區榮安一街490號13樓</div></div>
-<div class="doc-sub" style="text-align:right;"><strong style="font-size:20px;color:#111827;">進貨單</strong><br><br>單號：${d.purchase_no||'＿＿＿＿'}<br>日期：${d.purchase_date||'＿＿＿＿'}<br>供應商：${s?.name||'＿＿＿＿'}<br>對應報價：${q?.quote_no||'—'}</div></div>
-<div class="block"><h3>案場 / 備註</h3><p>案場：${d.site_name||'—'}<br>${(d.memo||'').replace(/\n/g,'<br>')}</p></div>
+<div class="doc-sub" style="text-align:right;"><strong style="font-size:20px;color:#111827;">進貨單</strong><br><br>單號：${d.purchase_no||'＿＿＿＿'}<br>日期：${d.purchase_date||'＿＿＿＿'}<br>供應商：${s?.name||'＿＿＿＿'}<br>對應報價：${q?.quote_no||''}</div></div>
+<div class="block"><h3>案場 / 備註</h3><p>案場：${d.site_name||''}<br>${(d.memo||'').replace(/\n/g,'<br>')}</p></div>
 <div class="block"><h3>進貨內容與費用</h3>
 <table class="quote-table"><thead><tr><th>項次</th><th>名稱</th><th>規格</th><th>數量</th><th>單位</th><th>單價</th><th>小計</th></tr></thead><tbody>
 ${d.items.map((it,idx)=>`<tr><td>${idx+1}</td><td>${it.item_name||''}</td><td>${it.spec||''}</td><td>${it.qty||''}</td><td>${it.unit||''}</td><td>NT$ ${money(it.unit_cost||0)}</td><td>NT$ ${money((it.qty||0)*(it.unit_cost||0))}</td></tr>`).join('') || '<tr><td colspan="7">尚無資料</td></tr>'}
 </tbody></table>
 <p style="text-align:right;line-height:1.9;">小計：NT$ ${money(t.subtotal)}<br>稅額：NT$ ${money(t.tax_amount)}<br><strong>總額：NT$ ${money(t.total)}</strong><br>已付：NT$ ${money(t.paid_amount)}<br>未付：NT$ ${money(t.remaining)}</p></div>
 <div class="block"><h3>付款資訊</h3><p>付款狀態：${d.payment_status}<br>付款方式：${d.payment_method}<br>到期日：${d.due_date||'—'}<br>付款日期：${d.paid_date||'—'}</p></div>
-<div class="sign-grid"><div class="sign-box">承辦簽章：</div><div class="sign-box">主管簽章：</div></div><div class="footer-note">昱拓弱電有限公司｜列印版文件</div>`; }
+<div class="sign-grid"><div class="sign-box">承辦簽章：</div><div class="sign-box">主管簽章：</div></div>`; }
 async function saveDoc(){ const d=collect(); if(!d.supplier_id) return alert('請選擇供應商'); let r; if(state.id) r=await API.updatePurchase(state.id,d); else r=await API.createPurchase(d); if(r.id && !state.id){ location.href='/purchase.html?id='+r.id; return; } alert('進貨單已存檔'); }
 function clearForm(){ window._formLoad={}; state.id=''; state.items=[{ equipment_id:'', item_name:'', spec:'', qty:1, unit:'式', unit_cost:0 }]; renderForm(); renderPreview(); }
 (async()=>{ suppliers=await API.getSuppliers(); quotes=await API.listQuotes(); equipment=await API.listEquipment(); const next=await API.nextNo('purchase'); window._formLoad={purchase_no:next.doc_no,purchase_date:today(),payment_status:'未付款',payment_method:'現金',items:[{ equipment_id:'', item_name:'', spec:'', qty:1, unit:'式', unit_cost:0 }]}; if(state.id){ const d=await API.getPurchase(state.id); fill({...d,id:state.id}); } else { state.items=[{ equipment_id:'', item_name:'', spec:'', qty:1, unit:'式', unit_cost:0 }]; } renderForm(); renderPreview(); })();

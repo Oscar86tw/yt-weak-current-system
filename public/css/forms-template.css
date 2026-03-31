@@ -50,3 +50,59 @@
 .list-item{background:#fff;border:1px solid #dbe4f0;border-radius:16px;padding:14px;margin-bottom:10px}
 .info-box{background:#ecfeff;color:#155e75;border:1px solid #a5f3fc;padding:10px 12px;border-radius:12px}
 @media (max-width:980px){.kpi-grid{grid-template-columns:1fr}}
+
+/* V3.9.3 print optimization */
+.form-preview{padding:22mm 16mm;background:#fff}
+.block h3{font-size:15px;margin:0 0 8px;padding:0;border:none;background:none;border-radius:0}
+.doc-head{border-bottom:1.5px solid #111827;padding-bottom:10px;margin-bottom:14px}
+.doc-head h2{font-size:24px}
+.doc-sub{font-size:12px;line-height:1.6}
+.block{margin-bottom:12px}
+.block p,.block li{font-size:13px;line-height:1.7;margin:0}
+.quote-table th,.quote-table td{padding:6px 7px;font-size:12px}
+.sign-grid{gap:20px;margin-top:28px}
+.sign-box{padding-top:28px;min-height:60px}
+.footer-note{display:none}
+@media print{
+  html,body{background:#fff !important;margin:0 !important;padding:0 !important;}
+  body *{box-shadow:none !important;}
+  .sidebar,.top-user,.nav,.page-header,.page-title,.page-subtitle,.hint,.form-panel,.form-topbar,.no-print,
+  header,nav,aside,.topbar,.user-bar,.user-info,.breadcrumb,.shell-header,.app-header{display:none !important;}
+  .main{margin:0 !important;padding:0 !important;display:block !important;}
+  #app{padding:0 !important;margin:0 !important;}
+  .form-wrap{max-width:210mm !important;width:210mm !important;padding:0 !important;margin:0 auto !important;}
+  .form-grid{display:block !important;}
+  .form-preview{
+    width:210mm !important;
+    min-height:297mm !important;
+    margin:0 auto !important;
+    padding:12mm 12mm 10mm 12mm !important;
+    border:none !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+    background:#fff !important;
+    overflow:visible !important;
+    break-inside:auto;
+  }
+  .form-brand, .form-wrap > .form-topbar, .form-grid > .form-panel{display:none !important;}
+  .doc-head,.block,.quote-table,.sign-grid,.sign-box{break-inside:avoid !important; page-break-inside:avoid !important;}
+  .block h3{
+    border:none !important;
+    background:none !important;
+    padding:0 0 4px 0 !important;
+    margin:0 0 6px 0 !important;
+    border-radius:0 !important;
+  }
+  .quote-table{width:100% !important;}
+  .quote-table th,.quote-table td{
+    font-size:11.5px !important;
+    padding:5px 6px !important;
+    word-break:break-word;
+  }
+  .doc-head h2{font-size:22px !important; margin:0 0 2px 0 !important;}
+  .doc-sub{font-size:11.5px !important; line-height:1.5 !important;}
+  .block{margin-bottom:10px !important;}
+  .block p,.block li{font-size:12px !important; line-height:1.6 !important;}
+  .sign-grid{margin-top:18px !important;}
+  .footer-note{display:none !important;}
+}

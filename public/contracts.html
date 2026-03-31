@@ -35,11 +35,11 @@ bindBase();
 function renderPreview(){ const d=collect(); const c=clients.find(x=>String(x.id)===String(d.client_id)); preview.innerHTML=`
 <div class="doc-head"><div><h2>昱拓弱電有限公司</h2><div class="doc-sub">弱電系統維修｜監控｜門禁｜對講｜車道停管｜BA中央監控<br>電話：0960-770-512<br>地址：桃園市中壢區榮安一街490號13樓</div></div>
 <div class="doc-sub" style="text-align:right;"><strong style="font-size:20px;color:#111827;">維護合約單</strong><br><br>單號：${d.doc_no || '＿＿＿＿'}<br>日期：${d.doc_date || '＿＿＿＿'}<br>客戶：${c?.client_name || '＿＿＿＿'}<br>統編：${c?.tax_id || '—'}</div></div>
-<div class="block"><h3>合約名稱</h3><p>${d.contract_name || '—'}</p></div>
-<div class="block"><h3>服務範圍</h3><p>${(d.scope||'—').replace(/\n/g,'<br>')}</p></div>
+<div class="block"><h3>合約名稱</h3><p>${d.contract_name || ''}</p></div>
+<div class="block"><h3>服務範圍</h3><p>${(d.scope||'').replace(/\n/g,'<br>')}</p></div>
 <div class="block"><h3>維護頻率與金額</h3><p>維護頻率：${d.frequency || '—'}<br>合約金額：NT$ ${Number(d.amount||0).toLocaleString('zh-TW')}</p></div>
 <div class="block"><h3>合約條款</h3><ol>${(d.terms||'').split(/\n+/).filter(Boolean).map(x=>`<li>${x.replace(/^\d+\./,'').trim()}</li>`).join('')}</ol></div>
-<div class="sign-grid"><div class="sign-box">客戶簽章：</div><div class="sign-box">公司簽章：</div></div><div class="footer-note">昱拓弱電有限公司｜列印版文件</div>`; }
+<div class="sign-grid"><div class="sign-box">客戶簽章：</div><div class="sign-box">公司簽章：</div></div>`; }
 async function saveDoc(){ const d=collect(); if(!d.client_id) return alert('請選擇客戶'); let r; if(state.id) r=await API.updateContract(state.id,d); else r=await API.createContract(d); if(r.id && !state.id){ location.href='/contracts.html?id='+r.id; return; } alert('維護合約單已存檔'); }
 function clearForm(){ window._formLoad = {}; state.id=''; renderForm(); renderPreview(); }
 (async()=>{ clients=await API.getClients(); const next=await API.nextNo('contract'); window._formLoad={doc_no:next.doc_no,doc_date:today(),amount:0}; if(state.id){ window._formLoad = await API.getContract(state.id); } renderForm(); renderPreview(); })();
