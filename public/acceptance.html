@@ -1,7 +1,43 @@
-<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>驗收單｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"></head><body><div id="app"></div><script src="/js/common.js"></script><script>
-document.getElementById('app').innerHTML=shell('新增驗收單',`<div class="split"><div class="form-panel"><h2 style="margin-top:0;">驗收單表單</h2><input type="hidden" id="docId"><div class="row"><div><label>文件編號</label><input id="docNo" readonly></div><div><label>日期</label><input id="docDate"></div></div><label>客戶</label><select id="clientSelect"></select><label>驗收內容</label><textarea id="content">1. 設備安裝完成。\n2. 線路整理完成。\n3. 系統測試正常。\n4. 基本操作說明完成。</textarea><label>備註</label><textarea id="note">如後續發現非本次施工範圍之既有設備異常，將另行檢測與報價。</textarea><div class="toolbar"><button id="saveBtn">存檔</button><button class="light" type="button" onclick="exportPdf()">匯出 PDF</button><button class="light" type="button" onclick="shareLine()">LINE 傳送</button></div></div><div class="preview-panel" id="preview"></div></div>`);
-let clients=[];function renderClientOptions(){clientSelect.innerHTML='<option value="">請選擇客戶</option>'+clients.map(c=>`<option value="${c.id}">${c.client_name}</option>`).join('')}
-function renderDoc(){const c=clients.find(x=>String(x.id)===String(clientSelect.value));preview.innerHTML=`<div class="doc-head"><div><h2>${COMPANY.name}</h2><div class="doc-sub">施工完成驗收單<br>電話：${COMPANY.phone}<br>地址：${COMPANY.address}</div></div><div class="doc-sub" style="text-align:right;"><strong style="font-size:20px;color:#111827;">驗收單</strong><br><br>單號：${docNo.value||'＿＿＿＿'}<br>日期：${docDate.value||'＿＿＿＿'}<br>客戶：${c?.client_name||'＿＿＿＿'}</div></div><div class="block"><h3>驗收項目</h3><ol>${splitLines(content.value).map(x=>`<li>${x.replace(/^\d+\./,'').trim()}</li>`).join('')}</ol></div><div class="block"><h3>備註</h3><p>${nl2br(note.value)||'—'}</p></div>`}
-async function saveDoc(){const p={doc_no:docNo.value,doc_date:docDate.value,client_id:clientSelect.value||null,content:content.value||'',note:note.value||''};if(!p.client_id)return alert('請先選擇客戶');let res; if(docId.value) res=await API.updateAcceptance(docId.value,p); else res=await API.createAcceptance(p); if(res&&res.id&&!docId.value){ location.href='/acceptance.html?id='+res.id; return; } alert('驗收單已存檔')}
-async function init(){clients=await API.getClients();renderClientOptions();const next=await API.nextNo('acceptance');docNo.value=next.doc_no;['docDate','content','note'].forEach(id=>document.getElementById(id).addEventListener('input',renderDoc));clientSelect.onchange=renderDoc;saveBtn.onclick=saveDoc;const id=qs('id');if(id){docId.value=id;const d=await API.getAcceptance(id);docNo.value=d.doc_no||'';docDate.value=d.doc_date||'';clientSelect.value=d.client_id?String(d.client_id):'';content.value=d.content||'';note.value=d.note||'';}renderDoc()}function exportPdf(){ const id=docId.value||qs('id'); if(!id) return alert('請先存檔後再匯出 PDF'); downloadFile('/api/acceptances/'+id+'/pdf'); } function shareLine(){ const id=docId.value||qs('id'); lineSharePdf('acceptances',id); } init();
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>驗收單｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/css/forms-template.css"></head><body><div id="app"></div><script src="/js/common.js"></script><script>
+document.getElementById('app').innerHTML = shell('資料建立 / 驗收單 / 新增', `<div class="form-wrap">
+  <div class="form-topbar">
+    <div class="form-brand">
+      <h1>昱拓弱電有限公司｜V3.9 完整整合版</h1>
+      <p>資料建立 / 驗收單 / 新增</p>
+    </div>
+    <div class="form-actions no-print" id="topActions"></div>
+  </div>
+  <div class="form-grid">
+    <div class="form-panel" id="leftPanel"></div>
+    <div class="form-preview" id="preview"></div>
+  </div>
+</div>`);
+
+const state = { id: qs('id') || '' };
+let clients = [];
+function today(){ return new Date().toISOString().slice(0,10); }
+function exportState(){ const blob = new Blob([JSON.stringify(collect(), null, 2)], {type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='acceptance-form.json'; a.click(); }
+function importState(el){ const f=el.files&&el.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ window._formLoad=JSON.parse(r.result); renderForm(); renderPreview(); }; r.readAsText(f,'utf-8'); }
+function collect(){ return { doc_no: doc_no.value, doc_date: doc_date.value, client_id: client_id.value || null, content: content.value, note: note.value }; }
+function bindBase(){ const d=window._formLoad||{}; doc_no.value=d.doc_no||''; doc_date.value=d.doc_date||today(); client_id.value=d.client_id?String(d.client_id):''; content.value=d.content||''; note.value=d.note||''; }
+function renderForm(){ topActions.innerHTML=`<button onclick="saveDoc()">儲存到系統</button><button class="secondary" onclick="window.print()">列印 / 另存 PDF</button><button class="light" onclick="exportState()">匯出資料</button><label class="light" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">匯入資料<input type="file" accept=".json" style="display:none" onchange="importState(this)"></label><button class="light" onclick="clearForm()">清空</button>`;
+leftPanel.innerHTML=`<div class="form-section-title">基本資料</div>
+<label>驗收單號</label><input id="doc_no">
+<div class="form-row"><div><label>日期</label><input id="doc_date" type="date"></div><div><label>客戶</label><select id="client_id"><option value="">請選擇客戶</option>${clients.map(c=>`<option value="${c.id}">${c.client_name}</option>`).join('')}</select></div></div>
+<label>驗收內容</label><textarea id="content"></textarea>
+<label>備註</label><textarea id="note"></textarea>
+<div class="hint">這版驗收單同樣使用穩定列印模板，避免左上角工具列一起被印出。</div>`;
+bindBase();
+['doc_no','doc_date','client_id','content','note'].forEach(id=>{ window[id].addEventListener('input', renderPreview); window[id].addEventListener('change', renderPreview);});
+}
+function renderPreview(){ const d=collect(); const c=clients.find(x=>String(x.id)===String(d.client_id)); preview.innerHTML=`
+<div class="doc-head"><div><h2>昱拓弱電有限公司</h2><div class="doc-sub">弱電系統維修｜監控｜門禁｜對講｜車道停管｜BA中央監控<br>電話：0960-770-512<br>地址：桃園市中壢區榮安一街490號13樓</div></div>
+<div class="doc-sub" style="text-align:right;"><strong style="font-size:20px;color:#111827;">驗收單</strong><br><br>單號：${d.doc_no || '＿＿＿＿'}<br>日期：${d.doc_date || '＿＿＿＿'}<br>客戶：${c?.client_name || '＿＿＿＿'}<br>統編：${c?.tax_id || '—'}</div></div>
+<div class="block"><h3>驗收內容</h3><p>${(d.content||'—').replace(/\n/g,'<br>')}</p></div>
+<div class="block"><h3>備註</h3><p>${(d.note||'—').replace(/\n/g,'<br>')}</p></div>
+<div class="sign-grid"><div class="sign-box">客戶簽章：</div><div class="sign-box">公司簽章：</div></div><div class="footer-note">昱拓弱電有限公司｜列印版文件</div>`; }
+async function saveDoc(){ const d=collect(); if(!d.client_id) return alert('請選擇客戶'); let r; if(state.id) r=await API.updateAcceptance(state.id,d); else r=await API.createAcceptance(d); if(r.id && !state.id){ location.href='/acceptance.html?id='+r.id; return; } alert('驗收單已存檔'); }
+function clearForm(){ window._formLoad={}; state.id=''; renderForm(); renderPreview(); }
+(async()=>{ clients=await API.getClients(); const next=await API.nextNo('acceptance'); window._formLoad={doc_no:next.doc_no,doc_date:today()}; if(state.id){ window._formLoad = await API.getAcceptance(state.id); } renderForm(); renderPreview(); })();
+
 </script></body></html>
