@@ -33,7 +33,7 @@
 @media (max-width: 980px){.form-grid{grid-template-columns:1fr}.form-panel{position:relative;top:auto}}
 @media print{
   body{background:#fff;}
-  .sidebar,.top-user,.nav,.hint,.form-panel,.form-topbar .form-actions, .no-print{display:none !important;}
+  .sidebar,.top-user,.nav,.page-header,.page-title,.page-subtitle,.hint,.form-panel,.form-topbar, .no-print{display:none !important;}
   .main{margin-left:0 !important;padding:0 !important;}
   .form-grid{display:block;}
   .form-preview{box-shadow:none;border:none;padding:0;}
