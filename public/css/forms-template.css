@@ -106,3 +106,36 @@
   .sign-grid{margin-top:18px !important;}
   .footer-note{display:none !important;}
 }
+/* V3.9.4 FINAL PRINT FIX */
+@media print{
+
+header, .page-header, .top-user, .user-info, .breadcrumb,
+.sidebar, .nav, .form-topbar, .form-panel{
+  display:none !important;
+}
+
+*{
+  box-shadow:none !important;
+  border-radius:0 !important;
+}
+
+html,body{
+  margin:0 !important;
+  padding:0 !important;
+  background:#fff !important;
+}
+
+.form-preview{
+  width:210mm !important;
+  min-height:297mm !important;
+  padding:12mm !important;
+  margin:0 auto !important;
+  border:none !important;
+}
+
+.footer-note{
+  display:none !important;
+}
+
+}
+
