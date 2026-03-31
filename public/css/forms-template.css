@@ -138,4 +138,176 @@ html,body{
 }
 
 }
+/* V4 正式商業文件版｜列印樣式補丁 */
+@media print{
+
+/* 1. 完全隱藏系統介面 */
+header, .page-header, .top-user, .user-info, .breadcrumb,
+.sidebar, .nav, .form-topbar, .form-panel, .no-print,
+button, .toolbar, .hint{
+  display:none !important;
+}
+
+/* 2. 取消網頁卡片感 */
+*{
+  box-shadow:none !important;
+  border-radius:0 !important;
+  text-shadow:none !important;
+}
+
+/* 3. A4 正式文件版面 */
+html, body{
+  margin:0 !important;
+  padding:0 !important;
+  background:#fff !important;
+  color:#000 !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+@page{
+  size:A4 portrait;
+  margin:12mm 12mm 12mm 12mm;
+}
+
+#app, .main, .form-wrap, .form-grid{
+  margin:0 !important;
+  padding:0 !important;
+  width:100% !important;
+  max-width:none !important;
+  display:block !important;
+  background:#fff !important;
+}
+
+.form-preview{
+  width:100% !important;
+  min-height:auto !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:none !important;
+  background:#fff !important;
+  overflow:visible !important;
+}
+
+/* 4. 正式文件字體與節奏 */
+body, .form-preview, .form-preview *{
+  font-family: "PMingLiU", "MingLiU", "Noto Serif TC", "Songti TC", serif !important;
+  letter-spacing:0.2px !important;
+}
+
+.doc-head{
+  border-bottom:1px solid #000 !important;
+  padding-bottom:8px !important;
+  margin-bottom:12px !important;
+  align-items:flex-start !important;
+}
+
+.doc-head h2{
+  font-size:22pt !important;
+  font-weight:700 !important;
+  margin:0 0 4px 0 !important;
+  line-height:1.2 !important;
+}
+
+.doc-sub{
+  font-size:10.5pt !important;
+  line-height:1.55 !important;
+  color:#000 !important;
+}
+
+.block{
+  margin:0 0 10px 0 !important;
+  break-inside:avoid !important;
+  page-break-inside:avoid !important;
+}
+
+.block h3{
+  font-size:12pt !important;
+  font-weight:700 !important;
+  margin:0 0 4px 0 !important;
+  padding:0 !important;
+  border:none !important;
+  background:none !important;
+  color:#000 !important;
+}
+
+.block p, .block li{
+  font-size:10.5pt !important;
+  line-height:1.65 !important;
+  color:#000 !important;
+  margin:0 !important;
+}
+
+/* 5. 表格改正式文件樣式 */
+.quote-table{
+  width:100% !important;
+  border-collapse:collapse !important;
+  margin-top:6px !important;
+  table-layout:fixed !important;
+  border:1px solid #000 !important;
+}
+
+.quote-table th, .quote-table td{
+  border:1px solid #000 !important;
+  padding:5px 6px !important;
+  font-size:10pt !important;
+  line-height:1.45 !important;
+  color:#000 !important;
+  vertical-align:top !important;
+  word-break:break-word !important;
+  background:#fff !important;
+}
+
+.quote-table th{
+  font-weight:700 !important;
+  text-align:center !important;
+}
+
+.quote-table td:last-child,
+.quote-table th:last-child{
+  text-align:right !important;
+}
+
+/* 6. 總額區更像正式報價單 */
+.quote-table + p,
+.block p[style*="text-align:right"]{
+  font-size:10.5pt !important;
+  line-height:1.7 !important;
+  margin-top:6px !important;
+  text-align:right !important;
+}
+
+strong{
+  font-weight:700 !important;
+}
+
+/* 7. 簽章區 */
+.sign-grid{
+  display:grid !important;
+  grid-template-columns:1fr 1fr !important;
+  gap:20mm !important;
+  margin-top:18mm !important;
+  break-inside:avoid !important;
+  page-break-inside:avoid !important;
+}
+
+.sign-box{
+  min-height:18mm !important;
+  padding-top:12mm !important;
+  border-top:1px solid #000 !important;
+  font-size:10.5pt !important;
+}
+
+/* 8. 清掉多餘頁尾 */
+.footer-note{
+  display:none !important;
+}
+
+/* 9. 避免孤行與怪異分頁 */
+table, tr, td, th, ol, ul{
+  break-inside:avoid !important;
+  page-break-inside:avoid !important;
+}
+
+}
 
