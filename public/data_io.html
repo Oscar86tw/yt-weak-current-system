@@ -5,10 +5,10 @@ document.getElementById('app').innerHTML = shell('系統設定 / 資料匯入匯
     ['clients','客戶資料','/api/export/clients','/api/import/clients'],
     ['suppliers','供應商','/api/export/suppliers','/api/import/suppliers'],
     ['equipment','設備','/api/export/equipment','/api/import/equipment'],
-    ['quotes','報價單','/api/export/quotes','/api/import/quotes'],
+    ['quotes','報價單主檔','/api/export/quotes','/api/import/quotes'],['quote-items','報價單明細','/api/export/quote-items',''],
     ['contracts','維護合約單','/api/export/contracts','/api/import/contracts'],
     ['acceptances','驗收單','/api/export/acceptances','/api/import/acceptances'],
-    ['purchases','進貨單','/api/export/purchases','/api/import/purchases']
+    ['purchases','進貨單主檔','/api/export/purchases','/api/import/purchases'],['purchase-items','進貨單明細','/api/export/purchase-items','']
   ].map(([key,title,exp,imp])=>`
     <div class="card">
       <h3>${title}</h3>
@@ -18,7 +18,7 @@ document.getElementById('app').innerHTML = shell('系統設定 / 資料匯入匯
       </div>
       <div class="toolbar" style="margin-top:8px;">
         <input type="file" id="file_${key}" accept=".xlsx,.xls">
-        <button class="light" onclick="uploadExcel('${imp}', document.getElementById('file_${key}'))">匯入 Excel</button>
+        ${imp ? `<button class="light" onclick="uploadExcel('${imp}', document.getElementById('file_${key}'))">匯入 Excel</button>` : ''}
       </div>
     </div>
   `).join('')}

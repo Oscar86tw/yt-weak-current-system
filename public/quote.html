@@ -162,7 +162,7 @@ function renderPreview(){
         統編：${c?.tax_id || '—'}
       </div>
     </div>
-    <div class="block"><h3>工程名稱</h3><p>${d.project_name || ''}</p></div>
+    <div class="block"><h3>工程名稱</h3><p>${d.project_name || '—'}</p></div>
     <div class="block">
       <h3>工程內容與費用</h3>
       <table class="quote-table">
@@ -173,13 +173,13 @@ function renderPreview(){
       </table>
       <p style="text-align:right;line-height:1.9;">小計：NT$ ${money(t.subtotal)}<br>營業稅：NT$ ${money(t.tax)}<br><strong>合計：NT$ ${money(t.total)}</strong></p>
     </div>
-    <div class="block"><h3>施工 / 查修說明</h3><p>${(d.quote_desc || '').replace(/\n/g,'<br>')}</p></div>
+    <div class="block"><h3>施工 / 查修說明</h3><p>${(d.quote_desc || '—').replace(/\n/g,'<br>')}</p></div>
     <div class="block"><h3>報價條款</h3><ol>${linesToOl(d.quote_terms)}</ol></div>
     <div class="sign-grid">
       <div class="sign-box">客戶簽章：</div>
       <div class="sign-box">公司簽章：</div>
     </div>
-    `;
+    <div class="footer-note">昱拓弱電有限公司｜列印版文件</div>`;
 }
 async function saveDoc(){
   const data = collect();

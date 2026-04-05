@@ -294,10 +294,19 @@ function createPdf(res, title, lines){
 }
 
 
-function toInt(value, fallback = null) {
+
+function toInt(value, fallback = 0) {
   if (value === undefined || value === null || value === '') return fallback;
   const n = Number(value);
-  return Number.isFinite(n) ? n : fallback;
+  return Number.isFinite(n) ? Math.round(n) : fallback;
+}
+function toNullableInt(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.round(n) : null;
+}
+function safeText(value, fallback = '') {
+  return value === undefined || value === null ? fallback : String(value).trim();
 }
 
 function toStr(value) {
@@ -327,6 +336,9 @@ function requireNumericId(req,res,next){
   if(!/^\d+$/.test(String(req.params.id || ''))) return next('route');
   next();
 }
+
+
+const asyncWrap = (fn) => (req,res,next) => Promise.resolve(fn(req,res,next)).catch(err => { console.error('API ERROR:', err); res.status(500).json({ error:'server_error', detail: err.message }); });
 
 function authRequired(req,res,next){
   const auth = req.headers.authorization || '';
@@ -385,60 +397,41 @@ app.put('/api/system-settings', authRequired, adminRequired, async (req,res) => 
   res.json(r.rows[0]);
 });
 
-app.get('/api/equipment-categories', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM equipment_categories ORDER BY code ASC, id ASC`)).rows));
-app.post('/api/equipment-categories', authRequired, adminRequired, async (req,res) => {
-  const d=req.body;
-  const r=await pool.query(`INSERT INTO equipment_categories (code,name) VALUES ($1,$2) RETURNING *`, [d.code||'', d.name||'']);
+
+app.get('/api/equipment-categories', authRequired, asyncWrap(async (req,res) => {
+  res.json((await pool.query(`SELECT * FROM equipment_categories ORDER BY code ASC, id ASC`)).rows);
+}));
+app.post('/api/equipment-categories', authRequired, adminRequired, asyncWrap(async (req,res) => {
+  const d=req.body||{};
+  const name=safeText(d.name);
+  if(!name) return res.status(400).json({ error:'category_name_required' });
+  let code = safeText(d.code);
+  if(!code){
+    const next = await nextDocNo('equipment_category');
+    code = next;
+  }
+  const r=await pool.query(`INSERT INTO equipment_categories (code,name) VALUES ($1,$2) RETURNING *`, [code, name]);
   res.json(r.rows[0]);
-});
-app.put('/api/equipment-categories/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => {
-  const d=req.body;
-  const r=await pool.query(`UPDATE equipment_categories SET code=$1,name=$2 WHERE id=$3 RETURNING *`, [d.code||'', d.name||'', req.params.id]);
+}));
+app.put('/api/equipment-categories/:id', authRequired, adminRequired, requireNumericId, asyncWrap(async (req,res) => {
+  const d=req.body||{};
+  const name=safeText(d.name);
+  if(!name) return res.status(400).json({ error:'category_name_required' });
+  const r=await pool.query(`UPDATE equipment_categories SET code=$1,name=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$3 RETURNING *`,
+    [safeText(d.code), name, toInt(req.params.id)]);
+  if(!r.rows.length) return res.status(404).json({ error:'not_found' });
   res.json(r.rows[0]);
-});
-app.delete('/api/equipment-categories/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => {
-  await pool.query(`DELETE FROM equipment_categories WHERE id=$1`, [req.params.id]);
+}));
+app.delete('/api/equipment-categories/:id', authRequired, adminRequired, requireNumericId, asyncWrap(async (req,res) => {
+  const cat = await pool.query(`SELECT name FROM equipment_categories WHERE id=$1`, [toInt(req.params.id)]);
+  if(cat.rows.length){
+    const used = await pool.query(`SELECT COUNT(*)::int AS cnt FROM equipment WHERE category=$1`, [cat.rows[0].name]);
+    if((used.rows[0]?.cnt || 0) > 0) return res.status(400).json({ error:'category_in_use' });
+  }
+  await pool.query(`DELETE FROM equipment_categories WHERE id=$1`, [toInt(req.params.id)]);
   res.json({ ok:true });
-});
+}));
 
-app.get('/api/clients', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM clients ORDER BY id DESC`)).rows));
-app.post('/api/clients', authRequired, adminRequired, async (req,res) => {
-  const d=req.body;
-  const r = await pool.query(`INSERT INTO clients (client_name,tax_id,contact_person,phone,address,job_title) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`, [d.client_name||'', d.tax_id||'', d.contact_person||'', d.phone||'', d.address||'', d.job_title||'']);
-  res.json(r.rows[0]);
-});
-app.put('/api/clients/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => {
-  const d=req.body;
-  const r = await pool.query(`UPDATE clients SET client_name=$1,tax_id=$2,contact_person=$3,phone=$4,address=$5,job_title=$6 WHERE id=$7 RETURNING *`, [d.client_name||'', d.tax_id||'', d.contact_person||'', d.phone||'', d.address||'', d.job_title||'', req.params.id]);
-  res.json(r.rows[0]);
-});
-app.delete('/api/clients/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => { await pool.query(`DELETE FROM clients WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
-
-app.get('/api/suppliers', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM suppliers ORDER BY id DESC`)).rows));
-app.post('/api/suppliers', authRequired, adminRequired, async (req,res) => {
-  const d=req.body;
-  const r = await pool.query(`INSERT INTO suppliers (name,tax_id,contact_person,phone,address,bank_info,note,is_favorite) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`, [d.name||'', d.tax_id||'', d.contact_person||'', d.phone||'', d.address||'', d.bank_info||'', d.note||'', !!d.is_favorite]);
-  res.json(r.rows[0]);
-});
-app.put('/api/suppliers/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => {
-  const d=req.body;
-  const r = await pool.query(`UPDATE suppliers SET name=$1,tax_id=$2,contact_person=$3,phone=$4,address=$5,bank_info=$6,note=$7,is_favorite=$8 WHERE id=$9 RETURNING *`, [d.name||'', d.tax_id||'', d.contact_person||'', d.phone||'', d.address||'', d.bank_info||'', d.note||'', !!d.is_favorite, req.params.id]);
-  res.json(r.rows[0]);
-});
-app.delete('/api/suppliers/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => { await pool.query(`DELETE FROM suppliers WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
-
-app.get('/api/equipment', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM equipment ORDER BY id DESC`)).rows));
-app.post('/api/equipment', authRequired, adminRequired, async (req,res) => {
-  const d=req.body; const profit=Number(d.price||0)-Number(d.cost||0);
-  const r = await pool.query(`INSERT INTO equipment (code,category,name,spec,cost,price,profit,note,link) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, [d.code||'', d.category||'', d.name||'', d.spec||'', Number(d.cost||0), Number(d.price||0), profit, d.note||'', d.link||'']);
-  res.json(r.rows[0]);
-});
-app.put('/api/equipment/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => {
-  const d=req.body; const profit=Number(d.price||0)-Number(d.cost||0);
-  const r = await pool.query(`UPDATE equipment SET code=$1,category=$2,name=$3,spec=$4,cost=$5,price=$6,profit=$7,note=$8,link=$9 WHERE id=$10 RETURNING *`, [d.code||'', d.category||'', d.name||'', d.spec||'', Number(d.cost||0), Number(d.price||0), profit, d.note||'', d.link||'', req.params.id]);
-  res.json(r.rows[0]);
-});
-app.delete('/api/equipment/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => { await pool.query(`DELETE FROM equipment WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
 
 
 app.get('/api/quotes/search', authRequired, async (req, res) => {
@@ -536,28 +529,60 @@ app.get('/api/quotes/:id', authRequired, requireNumericId, async (req,res,next) 
   const items = await pool.query(`SELECT * FROM quote_items WHERE quote_id=$1 ORDER BY item_order ASC,id ASC`, [req.params.id]);
   res.json({ ...q.rows[0], items: items.rows });
 });
+
 async function saveQuote(id, body){
-  const items = body.items || [];
-  const subtotal = items.reduce((s,i)=>s + (Number(i.qty||0)*Number(i.unit_price||0)), 0);
-  const tax = Math.round(subtotal * 0.05);
+  const clientId = toNullableInt(body.client_id);
+  const projectName = safeText(body.project_name);
+  if(!clientId) throw new Error('請先選擇客戶');
+  if(!projectName) throw new Error('請輸入工程名稱');
+  const items = Array.isArray(body.items) ? body.items : [];
+  const normalizedItems = items.map((item, idx) => {
+    const qty = toInt(item.qty, 0);
+    const unitPrice = toInt(item.unit_price, 0);
+    return {
+      item_order: toInt(item.item_order, idx + 1),
+      item_desc: safeText(item.item_desc),
+      spec: safeText(item.spec),
+      equipment_id: toNullableInt(item.equipment_id),
+      qty,
+      unit_price: unitPrice,
+      item_total: qty * unitPrice
+    };
+  });
+  const subtotal = normalizedItems.reduce((s,i)=>s + i.item_total, 0);
+  const tax = toInt(body.tax, Math.round(subtotal * 0.05));
   const total = subtotal + tax;
   let q;
   if(id){
-    const r = await pool.query(`UPDATE quotes SET quote_no=$1,quote_date=$2,client_id=$3,project_name=$4,subtotal=$5,tax=$6,total=$7,quote_desc=$8,quote_terms=$9 WHERE id=$10 RETURNING *`, [body.quote_no||'', body.quote_date||'', body.client_id||null, body.project_name||'', subtotal, tax, total, body.quote_desc||'', body.quote_terms||'', id]);
+    const r = await pool.query(`UPDATE quotes SET quote_no=$1,quote_date=$2,client_id=$3,project_name=$4,subtotal=$5,tax=$6,total=$7,quote_desc=$8,quote_terms=$9,sign_status=$10,progress=$11,updated_at=CURRENT_TIMESTAMP WHERE id=$12 RETURNING *`,
+      [safeText(body.quote_no), safeText(body.quote_date), clientId, projectName, subtotal, tax, total, safeText(body.quote_desc), safeText(body.quote_terms), safeText(body.sign_status,'尚未簽核') || '尚未簽核', safeText(body.progress,'待安排') || '待安排', toInt(id)]);
     q = r.rows[0];
-    await pool.query(`DELETE FROM quote_items WHERE quote_id=$1`, [id]);
+    if(!q) throw new Error('報價單不存在');
+    await pool.query(`DELETE FROM quote_items WHERE quote_id=$1`, [toInt(id)]);
   } else {
-    const r = await pool.query(`INSERT INTO quotes (quote_no,quote_date,client_id,project_name,subtotal,tax,total,quote_desc,quote_terms) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, [body.quote_no||'', body.quote_date||'', body.client_id||null, body.project_name||'', subtotal, tax, total, body.quote_desc||'', body.quote_terms||'']);
+    const r = await pool.query(`INSERT INTO quotes (quote_no,quote_date,client_id,project_name,subtotal,tax,total,quote_desc,quote_terms,sign_status,progress) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [safeText(body.quote_no), safeText(body.quote_date), clientId, projectName, subtotal, tax, total, safeText(body.quote_desc), safeText(body.quote_terms), safeText(body.sign_status,'尚未簽核') || '尚未簽核', safeText(body.progress,'待安排') || '待安排']);
     q = r.rows[0];
   }
-  for(const item of items){
-    const qty=Number(item.qty||0), unitPrice=Number(item.unit_price||0), itemTotal=qty*unitPrice;
-    await pool.query(`INSERT INTO quote_items (quote_id,item_order,item_desc,spec,equipment_id,qty,unit_price,item_total) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [q.id, item.item_order||0, item.item_desc||'', item.spec||'', item.equipment_id||null, qty, unitPrice, itemTotal]);
+  for(const item of normalizedItems){
+    await pool.query(`INSERT INTO quote_items (quote_id,item_order,item_desc,spec,equipment_id,qty,unit_price,item_total) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [q.id, item.item_order, item.item_desc, item.spec, item.equipment_id, item.qty, item.unit_price, item.item_total]);
   }
   return q;
 }
-app.post('/api/quotes', authRequired, adminRequired, async (req,res) => { const q = await saveQuote(null, req.body); res.json({ ok:true, id:q.id }); });
-app.put('/api/quotes/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => { const q = await saveQuote(req.params.id, req.body); res.json({ ok:true, id:q.id }); });
+
+
+app.post('/api/quotes', authRequired, adminRequired, asyncWrap(async (req,res) => {
+  const q = await saveQuote(null, req.body || {});
+  res.json({ ok:true, id:q.id });
+}));
+
+
+app.put('/api/quotes/:id', authRequired, adminRequired, requireNumericId, asyncWrap(async (req,res) => {
+  const q = await saveQuote(req.params.id, req.body || {});
+  res.json({ ok:true, id:q.id });
+}));
+
 app.delete('/api/quotes/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => { await pool.query(`DELETE FROM quotes WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
 
 app.get('/api/quote-tracking', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM quotes ORDER BY id DESC`)).rows));
@@ -569,30 +594,50 @@ app.put('/api/quote-tracking/:id', authRequired, adminRequired, requireNumericId
 
 app.get('/api/contracts', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM contracts ORDER BY id DESC`)).rows));
 app.get('/api/contracts/:id', authRequired, requireNumericId, async (req,res,next) => { const r=await pool.query(`SELECT * FROM contracts WHERE id=$1`, [req.params.id]); if(!r.rows.length) return res.status(404).json({error:'not found'}); res.json(r.rows[0]); });
-app.post('/api/contracts', authRequired, adminRequired, async (req,res) => {
-  const d=req.body;
-  const r=await pool.query(`INSERT INTO contracts (doc_no,doc_date,client_id,contract_name,scope,frequency,amount,terms) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`, [d.doc_no||'', d.doc_date||'', d.client_id||null, d.contract_name||'', d.scope||'', d.frequency||'', Number(d.amount||0), d.terms||'']);
+
+app.post('/api/contracts', authRequired, adminRequired, asyncWrap(async (req,res) => {
+  const d=req.body||{};
+  if(!toNullableInt(d.client_id)) return res.status(400).json({ error:'client_required' });
+  if(!safeText(d.contract_name)) return res.status(400).json({ error:'contract_name_required' });
+  const r=await pool.query(`INSERT INTO contracts (doc_no,doc_date,client_id,contract_name,scope,frequency,amount,terms) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+    [safeText(d.doc_no), safeText(d.doc_date), toNullableInt(d.client_id), safeText(d.contract_name), safeText(d.scope), safeText(d.frequency), toInt(d.amount,0), safeText(d.terms)]);
   res.json(r.rows[0]);
-});
-app.put('/api/contracts/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => {
-  const d=req.body;
-  const r=await pool.query(`UPDATE contracts SET doc_no=$1,doc_date=$2,client_id=$3,contract_name=$4,scope=$5,frequency=$6,amount=$7,terms=$8 WHERE id=$9 RETURNING *`, [d.doc_no||'', d.doc_date||'', d.client_id||null, d.contract_name||'', d.scope||'', d.frequency||'', Number(d.amount||0), d.terms||'', req.params.id]);
+}));
+
+
+app.put('/api/contracts/:id', authRequired, adminRequired, requireNumericId, asyncWrap(async (req,res) => {
+  const d=req.body||{};
+  if(!toNullableInt(d.client_id)) return res.status(400).json({ error:'client_required' });
+  if(!safeText(d.contract_name)) return res.status(400).json({ error:'contract_name_required' });
+  const r=await pool.query(`UPDATE contracts SET doc_no=$1,doc_date=$2,client_id=$3,contract_name=$4,scope=$5,frequency=$6,amount=$7,terms=$8,updated_at=CURRENT_TIMESTAMP WHERE id=$9 RETURNING *`,
+    [safeText(d.doc_no), safeText(d.doc_date), toNullableInt(d.client_id), safeText(d.contract_name), safeText(d.scope), safeText(d.frequency), toInt(d.amount,0), safeText(d.terms), toInt(req.params.id)]);
+  if(!r.rows.length) return res.status(404).json({ error:'not_found' });
   res.json(r.rows[0]);
-});
+}));
+
 app.delete('/api/contracts/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => { await pool.query(`DELETE FROM contracts WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
 
 app.get('/api/acceptances', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM acceptances ORDER BY id DESC`)).rows));
 app.get('/api/acceptances/:id', authRequired, requireNumericId, async (req,res,next) => { const r=await pool.query(`SELECT * FROM acceptances WHERE id=$1`, [req.params.id]); if(!r.rows.length) return res.status(404).json({error:'not found'}); res.json(r.rows[0]); });
-app.post('/api/acceptances', authRequired, adminRequired, async (req,res) => {
-  const d=req.body;
-  const r=await pool.query(`INSERT INTO acceptances (doc_no,doc_date,client_id,content,note) VALUES ($1,$2,$3,$4,$5) RETURNING *`, [d.doc_no||'', d.doc_date||'', d.client_id||null, d.content||'', d.note||'']);
+
+app.post('/api/acceptances', authRequired, adminRequired, asyncWrap(async (req,res) => {
+  const d=req.body||{};
+  if(!toNullableInt(d.client_id)) return res.status(400).json({ error:'client_required' });
+  const r=await pool.query(`INSERT INTO acceptances (doc_no,doc_date,client_id,content,note) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+    [safeText(d.doc_no), safeText(d.doc_date), toNullableInt(d.client_id), safeText(d.content), safeText(d.note)]);
   res.json(r.rows[0]);
-});
-app.put('/api/acceptances/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => {
-  const d=req.body;
-  const r=await pool.query(`UPDATE acceptances SET doc_no=$1,doc_date=$2,client_id=$3,content=$4,note=$5 WHERE id=$6 RETURNING *`, [d.doc_no||'', d.doc_date||'', d.client_id||null, d.content||'', d.note||'', req.params.id]);
+}));
+
+
+app.put('/api/acceptances/:id', authRequired, adminRequired, requireNumericId, asyncWrap(async (req,res) => {
+  const d=req.body||{};
+  if(!toNullableInt(d.client_id)) return res.status(400).json({ error:'client_required' });
+  const r=await pool.query(`UPDATE acceptances SET doc_no=$1,doc_date=$2,client_id=$3,content=$4,note=$5,updated_at=CURRENT_TIMESTAMP WHERE id=$6 RETURNING *`,
+    [safeText(d.doc_no), safeText(d.doc_date), toNullableInt(d.client_id), safeText(d.content), safeText(d.note), toInt(req.params.id)]);
+  if(!r.rows.length) return res.status(404).json({ error:'not_found' });
   res.json(r.rows[0]);
-});
+}));
+
 app.delete('/api/acceptances/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => { await pool.query(`DELETE FROM acceptances WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
 
 app.get('/api/purchases', authRequired, async (req,res) => {
@@ -605,33 +650,61 @@ app.get('/api/purchases/:id', authRequired, requireNumericId, async (req,res,nex
   const items = await pool.query(`SELECT * FROM purchase_items WHERE purchase_id=$1 ORDER BY item_order ASC,id ASC`, [req.params.id]);
   res.json({ ...p.rows[0], items: items.rows });
 });
+
 async function savePurchase(id, body){
-  const items = body.items || [];
-  const subtotal = items.reduce((s,i)=>s + (Number(i.qty||0)*Number(i.unit_cost||0)), 0);
-  const tax = Number(body.tax_amount || 0);
+  const supplierId = toNullableInt(body.supplier_id);
+  if(!supplierId) throw new Error('請選擇供應商');
+  const items = Array.isArray(body.items) ? body.items : [];
+  const normalizedItems = items.map((item, idx) => {
+    const qty = toInt(item.qty, 0);
+    const unitCost = toInt(item.unit_cost, 0);
+    return {
+      item_order: toInt(item.item_order, idx + 1),
+      equipment_id: toNullableInt(item.equipment_id),
+      item_name: safeText(item.item_name),
+      spec: safeText(item.spec),
+      qty,
+      unit: safeText(item.unit, '式'),
+      unit_cost: unitCost,
+      item_total: qty * unitCost
+    };
+  });
+  const subtotal = normalizedItems.reduce((s,i)=>s + i.item_total, 0);
+  const tax = toInt(body.tax_amount, 0);
   const total = subtotal + tax;
-  const paid = Number(body.paid_amount || 0);
+  const paid = toInt(body.paid_amount, 0);
   const remain = total - paid;
   let p;
   if(id){
-    const r = await pool.query(`UPDATE purchases SET purchase_no=$1,purchase_date=$2,supplier_id=$3,quote_id=$4,site_name=$5,memo=$6,subtotal_amount=$7,tax_amount=$8,total_amount=$9,payment_status=$10,payment_method=$11,due_date=$12,paid_amount=$13,remaining_amount=$14,paid_date=$15 WHERE id=$16 RETURNING *`,
-      [body.purchase_no||'', body.purchase_date||'', body.supplier_id||null, body.quote_id||null, body.site_name||'', body.memo||'', subtotal, tax, total, body.payment_status||'未付款', body.payment_method||'現金', body.due_date||'', paid, remain, body.paid_date||'', id]);
+    const r = await pool.query(`UPDATE purchases SET purchase_no=$1,purchase_date=$2,supplier_id=$3,quote_id=$4,site_name=$5,memo=$6,subtotal_amount=$7,tax_amount=$8,total_amount=$9,payment_status=$10,payment_method=$11,due_date=$12,paid_amount=$13,remaining_amount=$14,paid_date=$15,updated_at=CURRENT_TIMESTAMP WHERE id=$16 RETURNING *`,
+      [safeText(body.purchase_no), safeText(body.purchase_date), supplierId, toNullableInt(body.quote_id), safeText(body.site_name), safeText(body.memo), subtotal, tax, total, safeText(body.payment_status,'未付款') || '未付款', safeText(body.payment_method,'現金') || '現金', safeText(body.due_date), paid, remain, safeText(body.paid_date), toInt(id)]);
     p = r.rows[0];
-    await pool.query(`DELETE FROM purchase_items WHERE purchase_id=$1`, [id]);
+    if(!p) throw new Error('進貨單不存在');
+    await pool.query(`DELETE FROM purchase_items WHERE purchase_id=$1`, [toInt(id)]);
   } else {
     const r = await pool.query(`INSERT INTO purchases (purchase_no,purchase_date,supplier_id,quote_id,site_name,memo,subtotal_amount,tax_amount,total_amount,payment_status,payment_method,due_date,paid_amount,remaining_amount,paid_date) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
-      [body.purchase_no||'', body.purchase_date||'', body.supplier_id||null, body.quote_id||null, body.site_name||'', body.memo||'', subtotal, tax, total, body.payment_status||'未付款', body.payment_method||'現金', body.due_date||'', paid, remain, body.paid_date||'']);
+      [safeText(body.purchase_no), safeText(body.purchase_date), supplierId, toNullableInt(body.quote_id), safeText(body.site_name), safeText(body.memo), subtotal, tax, total, safeText(body.payment_status,'未付款') || '未付款', safeText(body.payment_method,'現金') || '現金', safeText(body.due_date), paid, remain, safeText(body.paid_date)]);
     p = r.rows[0];
   }
-  for(const item of items){
-    const qty=Number(item.qty||0), unitCost=Number(item.unit_cost||0), itemTotal=qty*unitCost;
+  for(const item of normalizedItems){
     await pool.query(`INSERT INTO purchase_items (purchase_id,item_order,equipment_id,item_name,spec,qty,unit,unit_cost,item_total) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [p.id, item.item_order||0, item.equipment_id||null, item.item_name||'', item.spec||'', qty, item.unit||'', unitCost, itemTotal]);
+      [p.id, item.item_order, item.equipment_id, item.item_name, item.spec, item.qty, item.unit, item.unit_cost, item.item_total]);
   }
   return p;
 }
-app.post('/api/purchases', authRequired, adminRequired, async (req,res) => { const p = await savePurchase(null, req.body); res.json({ ok:true, id:p.id }); });
-app.put('/api/purchases/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => { const p = await savePurchase(req.params.id, req.body); res.json({ ok:true, id:p.id }); });
+
+
+app.post('/api/purchases', authRequired, adminRequired, asyncWrap(async (req,res) => {
+  const p = await savePurchase(null, req.body || {});
+  res.json({ ok:true, id:p.id });
+}));
+
+
+app.put('/api/purchases/:id', authRequired, adminRequired, requireNumericId, asyncWrap(async (req,res) => {
+  const p = await savePurchase(req.params.id, req.body || {});
+  res.json({ ok:true, id:p.id });
+}));
+
 app.delete('/api/purchases/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => { await pool.query(`DELETE FROM purchases WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
 app.get('/api/payables', authRequired, async (req,res) => {
   const r = await pool.query(`SELECT p.id,p.purchase_no,p.payment_status,p.payment_method,p.due_date,p.paid_date,p.total_amount,p.paid_amount,p.remaining_amount,s.name AS supplier_name,p.created_at FROM purchases p LEFT JOIN suppliers s ON s.id=p.supplier_id ORDER BY COALESCE(p.due_date,''), p.id DESC`);
@@ -812,3 +885,14 @@ initDb().then(() => {
   console.error('Startup error:', err);
   process.exit(1);
 });
+
+
+app.get('/api/export/quote-items', authRequired, asyncWrap(async (req,res) => {
+  const rows = (await pool.query(`SELECT q.quote_no AS "報價單號", qi.item_order AS "項次", qi.item_desc AS "估價事項", qi.spec AS "規格", qi.qty AS "數量", qi.unit_price AS "單價", qi.item_total AS "小計" FROM quote_items qi LEFT JOIN quotes q ON q.id=qi.quote_id ORDER BY qi.quote_id DESC, qi.item_order ASC`)).rows;
+  sendExcel(res, 'quote_items.xlsx', rows, 'quote_items');
+}));
+
+app.get('/api/export/purchase-items', authRequired, asyncWrap(async (req,res) => {
+  const rows = (await pool.query(`SELECT p.purchase_no AS "進貨單號", pi.item_order AS "項次", pi.item_name AS "名稱", pi.spec AS "規格", pi.qty AS "數量", pi.unit AS "單位", pi.unit_cost AS "單價", pi.item_total AS "小計" FROM purchase_items pi LEFT JOIN purchases p ON p.id=pi.purchase_id ORDER BY pi.purchase_id DESC, pi.item_order ASC`)).rows;
+  sendExcel(res, 'purchase_items.xlsx', rows, 'purchase_items');
+}));
