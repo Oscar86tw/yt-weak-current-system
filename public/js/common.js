@@ -176,3 +176,67 @@ function resetIdleTimer(){
   document.addEventListener(evt, ()=>{ if(localStorage.getItem('yt_token')) resetIdleTimer(); }, {passive:true});
 });
 document.addEventListener('DOMContentLoaded', ()=>{ if(localStorage.getItem('yt_token')) resetIdleTimer(); });
+
+async function jsonOrThrow(res){
+  let data = null;
+  try { data = await res.json(); } catch(e) {}
+  if(!res.ok){
+    const msg = data?.detail || data?.error || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
+API.listEquipment = async () => jsonOrThrow(await API.request('/api/equipment'));
+API.listQuotes = async () => jsonOrThrow(await API.request('/api/quotes'));
+API.getQuote = async (id) => jsonOrThrow(await API.request('/api/quotes/' + id));
+API.createQuote = async (data) => jsonOrThrow(await API.request('/api/quotes', { method:'POST', body: JSON.stringify(data) }));
+API.updateQuote = async (id,data) => jsonOrThrow(await API.request('/api/quotes/' + id, { method:'PUT', body: JSON.stringify(data) }));
+API.deleteQuote = async (id) => jsonOrThrow(await API.request('/api/quotes/' + id, { method:'DELETE' }));
+
+API.getContract = async (id) => jsonOrThrow(await API.request('/api/contracts/' + id));
+API.createContract = async (data) => jsonOrThrow(await API.request('/api/contracts', { method:'POST', body: JSON.stringify(data) }));
+API.updateContract = async (id,data) => jsonOrThrow(await API.request('/api/contracts/' + id, { method:'PUT', body: JSON.stringify(data) }));
+API.deleteContract = async (id) => jsonOrThrow(await API.request('/api/contracts/' + id, { method:'DELETE' }));
+
+API.getAcceptance = async (id) => jsonOrThrow(await API.request('/api/acceptances/' + id));
+API.createAcceptance = async (data) => jsonOrThrow(await API.request('/api/acceptances', { method:'POST', body: JSON.stringify(data) }));
+API.updateAcceptance = async (id,data) => jsonOrThrow(await API.request('/api/acceptances/' + id, { method:'PUT', body: JSON.stringify(data) }));
+API.deleteAcceptance = async (id) => jsonOrThrow(await API.request('/api/acceptances/' + id, { method:'DELETE' }));
+
+API.getPurchase = async (id) => jsonOrThrow(await API.request('/api/purchases/' + id));
+API.createPurchase = async (data) => jsonOrThrow(await API.request('/api/purchases', { method:'POST', body: JSON.stringify(data) }));
+API.updatePurchase = async (id,data) => jsonOrThrow(await API.request('/api/purchases/' + id, { method:'PUT', body: JSON.stringify(data) }));
+API.deletePurchase = async (id) => jsonOrThrow(await API.request('/api/purchases/' + id, { method:'DELETE' }));
+
+API.getClients = async () => jsonOrThrow(await API.request('/api/clients'));
+API.createClient = async (data) => jsonOrThrow(await API.request('/api/clients', { method:'POST', body: JSON.stringify(data) }));
+API.updateClient = async (id,data) => jsonOrThrow(await API.request('/api/clients/' + id, { method:'PUT', body: JSON.stringify(data) }));
+API.deleteClient = async (id) => jsonOrThrow(await API.request('/api/clients/' + id, { method:'DELETE' }));
+
+API.getSuppliers = async () => jsonOrThrow(await API.request('/api/suppliers'));
+API.createSupplier = async (data) => jsonOrThrow(await API.request('/api/suppliers', { method:'POST', body: JSON.stringify(data) }));
+API.updateSupplier = async (id,data) => jsonOrThrow(await API.request('/api/suppliers/' + id, { method:'PUT', body: JSON.stringify(data) }));
+API.deleteSupplier = async (id) => jsonOrThrow(await API.request('/api/suppliers/' + id, { method:'DELETE' }));
+
+API.getEquipmentCategories = async () => jsonOrThrow(await API.request('/api/equipment-categories'));
+API.createEquipmentCategory = async (data) => jsonOrThrow(await API.request('/api/equipment-categories', { method:'POST', body: JSON.stringify(data) }));
+API.updateEquipmentCategory = async (id,data) => jsonOrThrow(await API.request('/api/equipment-categories/' + id, { method:'PUT', body: JSON.stringify(data) }));
+API.deleteEquipmentCategory = async (id) => jsonOrThrow(await API.request('/api/equipment-categories/' + id, { method:'DELETE' }));
+
+API.createEquipment = async (data) => jsonOrThrow(await API.request('/api/equipment', { method:'POST', body: JSON.stringify(data) }));
+API.updateEquipment = async (id,data) => jsonOrThrow(await API.request('/api/equipment/' + id, { method:'PUT', body: JSON.stringify(data) }));
+API.deleteEquipment = async (id) => jsonOrThrow(await API.request('/api/equipment/' + id, { method:'DELETE' }));
+
+API.searchQuotes = async (params)=> jsonOrThrow(await API.request('/api/quotes/search?'+new URLSearchParams(params)));
+API.quoteSummary = async ()=> jsonOrThrow(await API.request('/api/quotes/summary'));
+API.updateQuoteTracking = async (id,data)=> jsonOrThrow(await API.request('/api/quote-tracking/' + id, { method:'PUT', body: JSON.stringify(data) }));
+
+API.searchPurchases = async (params)=> jsonOrThrow(await API.request('/api/purchases/search?'+new URLSearchParams(params)));
+API.purchaseSummary = async ()=> jsonOrThrow(await API.request('/api/purchases/summary'));
+API.purchaseOverdue = async ()=> jsonOrThrow(await API.request('/api/purchases/overdue'));
+
+API.searchEquipment = async (params)=> jsonOrThrow(await API.request('/api/equipment/search?'+new URLSearchParams(params)));
+API.equipmentSummary = async ()=> jsonOrThrow(await API.request('/api/equipment/summary'));
+
+API.nextNo = async (type) => jsonOrThrow(await API.request('/api/serials/next?type=' + encodeURIComponent(type)));

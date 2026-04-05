@@ -12,7 +12,7 @@ document.getElementById('app').innerHTML = shell('系統設定 / 資料匯入匯
   ].map(([key,title,exp,imp])=>`
     <div class="card">
       <h3>${title}</h3>
-      <p>可匯出 Excel，也可從 Excel 匯入。</p>
+      <p>匯出的是系統已建立資料；匯入則回寫資料庫。</p>
       <div class="toolbar">
         <button onclick="downloadFile('${exp}')">匯出 Excel</button>
       </div>

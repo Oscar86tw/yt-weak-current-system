@@ -36,7 +36,7 @@ function renderPreview(){ const d=collect(); const c=clients.find(x=>String(x.id
 <div class="block"><h3>驗收內容</h3><p>${(d.content||'—').replace(/\n/g,'<br>')}</p></div>
 <div class="block"><h3>備註</h3><p>${(d.note||'—').replace(/\n/g,'<br>')}</p></div>
 <div class="sign-grid"><div class="sign-box">客戶簽章：</div><div class="sign-box">公司簽章：</div></div><div class="footer-note">昱拓弱電有限公司｜列印版文件</div>`; }
-async function saveDoc(){ const d=collect(); if(!d.client_id) return alert('請選擇客戶'); let r; if(state.id) r=await API.updateAcceptance(state.id,d); else r=await API.createAcceptance(d); if(r.id && !state.id){ location.href='/acceptance.html?id='+r.id; return; } alert('驗收單已存檔'); }
+async function saveDoc(){ const d=collect(); if(!d.client_id) return alert('請選擇客戶'); try{ let r; if(state.id) r=await API.updateAcceptance(state.id,d); else r=await API.createAcceptance(d); if(r.id && !state.id){ location.href='/acceptance.html?id='+r.id; return; } alert('驗收單已存檔'); }catch(err){ alert('驗收單存檔失敗：' + err.message); } }
 function clearForm(){ window._formLoad={}; state.id=''; renderForm(); renderPreview(); }
 (async()=>{ clients=await API.getClients(); const next=await API.nextNo('acceptance'); window._formLoad={doc_no:next.doc_no,doc_date:today()}; if(state.id){ window._formLoad = await API.getAcceptance(state.id); } renderForm(); renderPreview(); })();
 
