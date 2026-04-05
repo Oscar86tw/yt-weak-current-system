@@ -5,20 +5,20 @@ document.getElementById('app').innerHTML = shell('系統設定 / 資料匯入匯
     ['clients','客戶資料','/api/export/clients','/api/import/clients'],
     ['suppliers','供應商','/api/export/suppliers','/api/import/suppliers'],
     ['equipment','設備','/api/export/equipment','/api/import/equipment'],
-    ['quotes','報價單主檔','/api/export/quotes','/api/import/quotes'],['quote-items','報價單明細','/api/export/quote-items',''],
+    ['quotes','報價單','/api/export/quotes','/api/import/quotes'],
     ['contracts','維護合約單','/api/export/contracts','/api/import/contracts'],
     ['acceptances','驗收單','/api/export/acceptances','/api/import/acceptances'],
-    ['purchases','進貨單主檔','/api/export/purchases','/api/import/purchases'],['purchase-items','進貨單明細','/api/export/purchase-items','']
+    ['purchases','進貨單','/api/export/purchases','/api/import/purchases']
   ].map(([key,title,exp,imp])=>`
     <div class="card">
       <h3>${title}</h3>
-      <p>匯出的是系統已建立資料；匯入則回寫資料庫。</p>
+      <p>可匯出 Excel，也可從 Excel 匯入。</p>
       <div class="toolbar">
         <button onclick="downloadFile('${exp}')">匯出 Excel</button>
       </div>
       <div class="toolbar" style="margin-top:8px;">
         <input type="file" id="file_${key}" accept=".xlsx,.xls">
-        ${imp ? `<button class="light" onclick="uploadExcel('${imp}', document.getElementById('file_${key}'))">匯入 Excel</button>` : ''}
+        <button class="light" onclick="uploadExcel('${imp}', document.getElementById('file_${key}'))">匯入 Excel</button>
       </div>
     </div>
   `).join('')}

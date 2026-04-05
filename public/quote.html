@@ -206,6 +206,6 @@ function clearForm(){ window._formLoad = {}; state.id=''; state.items=[{ item_de
     state.items=[{ item_desc:'', equipment_id:'', spec:'', qty:1, unit_price:0 }];
   }
   renderForm(); renderPreview();
-})();
+})().catch(err=>{ alert('載入報價單失敗：' + err.message); });
 
 </script></body></html>
