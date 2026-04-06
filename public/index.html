@@ -6,15 +6,16 @@
 </head><body><div id="app"></div><script src="/js/common.js"></script><script>
 function money(v){ return Number(v||0).toLocaleString('zh-TW'); }
 function pct(value,total){ return total>0 ? Math.round((value/total)*100) : 0; }
+async function safeCall(fn, fallback){
+  try{ return await fn(); }catch(err){ console.error('dashboard block error:', err); return fallback; }
+}
 async function loadDashboard(){
-  const [quoteSummary, purchaseSummary, purchaseOverdue, equipmentSummary, recentQuotes, recentPurchases] = await Promise.all([
-    API.quoteSummary(),
-    API.purchaseSummary(),
-    API.purchaseOverdue(),
-    API.equipmentSummary(),
-    API.searchQuotes({}),
-    API.searchPurchases({})
-  ]);
+  const quoteSummary = await safeCall(()=>API.quoteSummary(), {today_count:0, month_count:0, month_total:0, approved_total:0, unsigned_count:0, pending_count:0, warning:'quotes_summary_failed'});
+  const purchaseSummary = await safeCall(()=>API.purchaseSummary(), {month_count:0, month_total:0, paid_total:0, unpaid_total:0, unpaid_count:0, warning:'purchases_summary_failed'});
+  const purchaseOverdue = await safeCall(()=>API.purchaseOverdue(), {rows:[], warning:'purchases_overdue_failed'});
+  const equipmentSummary = await safeCall(()=>API.equipmentSummary(), {total_count:0, new_this_month:0, avg_price:0, avg_profit:0, high_profit_count:0});
+  const recentQuotes = await safeCall(()=>API.searchQuotes({}), {rows:[]});
+  const recentPurchases = await safeCall(()=>API.searchPurchases({}), {rows:[]});
 
   const qRows = (recentQuotes.rows||[]).slice(0,5);
   const pRows = (recentPurchases.rows||[]).slice(0,5);
@@ -33,10 +34,16 @@ async function loadDashboard(){
   const avgPrice = Number(equipmentSummary.avg_price||0);
   const highProfit = Number(equipmentSummary.high_profit_count||0);
 
+  const warn = [];
+  if(quoteSummary.warning) warn.push('報價摘要安全模式');
+  if(purchaseSummary.warning) warn.push('進貨摘要安全模式');
+  if(purchaseOverdue.warning) warn.push('逾期提醒安全模式');
+
   const html = `
     <section class="hero2">
       <h2>首頁儀表板</h2>
       <p>案件、進貨、設備與風險提醒整合在同一頁，方便每天先看重點再進入各模組。</p>
+      ${warn.length ? `<div class="small-note" style="margin-top:10px;color:#dbeafe;">${warn.join('｜')}</div>` : ''}
     </section>
 
     <section class="kpi-grid">
@@ -110,9 +117,6 @@ async function loadDashboard(){
   `;
   document.getElementById('dashboard').innerHTML = html;
 }
-
 document.getElementById('app').innerHTML = shell('首頁 / 儀表板', '<div id="dashboard" class="dashboard"><div class="small-note">載入中…</div></div>');
-loadDashboard().catch(err=>{
-  document.getElementById('dashboard').innerHTML = '<div class="panel"><h3>儀表板載入失敗</h3><div class="small-note">'+ err.message +'</div></div>';
-});
+loadDashboard();
 </script></body></html>

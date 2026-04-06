@@ -462,12 +462,43 @@ app.get('/api/quotes/search', authRequired, async (req, res) => {
     res.json({ filters:{ keyword, date_from, date_to, client_id, sign_status, progress, total_min, total_max }, rows });
   } catch (err) { console.error('quotes search error:', err); res.status(500).json({ error:'quotes_search_failed' }); }
 });
+
 app.get('/api/quotes/summary', authRequired, async (req, res) => {
   try {
-    const row = (await pool.query(`SELECT COUNT(*) FILTER (WHERE quote_date = CURRENT_DATE::TEXT) AS today_count, COUNT(*) FILTER (WHERE DATE_TRUNC('month', CAST(quote_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)) AS month_count, COALESCE(SUM(total) FILTER (WHERE DATE_TRUNC('month', CAST(quote_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)),0) AS month_total, COALESCE(SUM(total) FILTER (WHERE sign_status='同意施作' AND DATE_TRUNC('month', CAST(quote_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)),0) AS approved_total, COUNT(*) FILTER (WHERE sign_status='尚未簽核') AS unsigned_count, COUNT(*) FILTER (WHERE progress='待安排') AS pending_count FROM quotes`)).rows[0] || {};
-    res.json({ today_count:Number(row.today_count||0), month_count:Number(row.month_count||0), month_total:Number(row.month_total||0), approved_total:Number(row.approved_total||0), unsigned_count:Number(row.unsigned_count||0), pending_count:Number(row.pending_count||0) });
-  } catch (err) { console.error('quotes summary error:', err); res.status(500).json({ error:'quotes_summary_failed' }); }
+    const row = (await pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE quote_date = CURRENT_DATE::TEXT) AS today_count,
+        COUNT(*) FILTER (
+          WHERE quote_date ~ '^\d{4}-\d{2}-\d{2}$'
+            AND DATE_TRUNC('month', CAST(quote_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)
+        ) AS month_count,
+        COALESCE(SUM(total) FILTER (
+          WHERE quote_date ~ '^\d{4}-\d{2}-\d{2}$'
+            AND DATE_TRUNC('month', CAST(quote_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)
+        ),0) AS month_total,
+        COALESCE(SUM(total) FILTER (
+          WHERE sign_status='同意施作'
+            AND quote_date ~ '^\d{4}-\d{2}-\d{2}$'
+            AND DATE_TRUNC('month', CAST(quote_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)
+        ),0) AS approved_total,
+        COUNT(*) FILTER (WHERE sign_status='尚未簽核') AS unsigned_count,
+        COUNT(*) FILTER (WHERE progress='待安排') AS pending_count
+      FROM quotes
+    `)).rows[0] || {};
+    res.json({
+      today_count: Number(row.today_count || 0),
+      month_count: Number(row.month_count || 0),
+      month_total: Number(row.month_total || 0),
+      approved_total: Number(row.approved_total || 0),
+      unsigned_count: Number(row.unsigned_count || 0),
+      pending_count: Number(row.pending_count || 0)
+    });
+  } catch (err) {
+    console.error('quotes summary error:', err);
+    res.json({ today_count: 0, month_count: 0, month_total: 0, approved_total: 0, unsigned_count: 0, pending_count: 0, warning: 'quotes_summary_failed' });
+  }
 });
+
 app.get('/api/purchases/search', authRequired, async (req, res) => {
   try {
     const { keyword = '', date_from = '', date_to = '', supplier_id = '', payment_status = '', payment_method = '', total_min = '', total_max = '' } = req.query;
@@ -489,18 +520,58 @@ app.get('/api/purchases/search', authRequired, async (req, res) => {
     res.json({ filters:{ keyword,date_from,date_to,supplier_id,payment_status,payment_method,total_min,total_max }, rows });
   } catch (err) { console.error('purchases search error:', err); res.status(500).json({ error:'purchases_search_failed' }); }
 });
+
 app.get('/api/purchases/summary', authRequired, async (req, res) => {
   try {
-    const row = (await pool.query(`SELECT COUNT(*) FILTER (WHERE DATE_TRUNC('month', CAST(purchase_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)) AS month_count, COALESCE(SUM(total_amount) FILTER (WHERE DATE_TRUNC('month', CAST(purchase_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)),0) AS month_total, COALESCE(SUM(paid_amount),0) AS paid_total, COALESCE(SUM(remaining_amount),0) AS unpaid_total, COUNT(*) FILTER (WHERE payment_status <> '已付款') AS unpaid_count FROM purchases`)).rows[0] || {};
-    res.json({ month_count:Number(row.month_count||0), month_total:Number(row.month_total||0), paid_total:Number(row.paid_total||0), unpaid_total:Number(row.unpaid_total||0), unpaid_count:Number(row.unpaid_count||0) });
-  } catch (err) { console.error('purchases summary error:', err); res.status(500).json({ error:'purchases_summary_failed' }); }
+    const row = (await pool.query(`
+      SELECT
+        COUNT(*) FILTER (
+          WHERE purchase_date ~ '^\d{4}-\d{2}-\d{2}$'
+            AND DATE_TRUNC('month', CAST(purchase_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)
+        ) AS month_count,
+        COALESCE(SUM(total_amount) FILTER (
+          WHERE purchase_date ~ '^\d{4}-\d{2}-\d{2}$'
+            AND DATE_TRUNC('month', CAST(purchase_date AS DATE)) = DATE_TRUNC('month', CURRENT_DATE)
+        ),0) AS month_total,
+        COALESCE(SUM(paid_amount),0) AS paid_total,
+        COALESCE(SUM(remaining_amount),0) AS unpaid_total,
+        COUNT(*) FILTER (WHERE COALESCE(payment_status,'') <> '已付款') AS unpaid_count
+      FROM purchases
+    `)).rows[0] || {};
+    res.json({
+      month_count: Number(row.month_count || 0),
+      month_total: Number(row.month_total || 0),
+      paid_total: Number(row.paid_total || 0),
+      unpaid_total: Number(row.unpaid_total || 0),
+      unpaid_count: Number(row.unpaid_count || 0)
+    });
+  } catch (err) {
+    console.error('purchases summary error:', err);
+    res.json({ month_count: 0, month_total: 0, paid_total: 0, unpaid_total: 0, unpaid_count: 0, warning: 'purchases_summary_failed' });
+  }
 });
+
+
 app.get('/api/purchases/overdue', authRequired, async (req, res) => {
   try {
-    const rows = (await pool.query(`SELECT p.id,p.purchase_no,p.purchase_date,s.name AS supplier_name,p.total_amount,p.paid_amount,p.remaining_amount,p.due_date,p.payment_status FROM purchases p LEFT JOIN suppliers s ON s.id=p.supplier_id WHERE p.payment_status <> '已付款' AND p.due_date IS NOT NULL AND p.due_date <> '' AND CAST(p.due_date AS DATE) < CURRENT_DATE ORDER BY p.due_date ASC`)).rows;
+    const rows = (await pool.query(`
+      SELECT
+        p.id,p.purchase_no,p.purchase_date,s.name AS supplier_name,
+        p.total_amount,p.paid_amount,p.remaining_amount,p.due_date,p.payment_status
+      FROM purchases p
+      LEFT JOIN suppliers s ON s.id=p.supplier_id
+      WHERE COALESCE(p.payment_status,'') <> '已付款'
+        AND p.due_date ~ '^\d{4}-\d{2}-\d{2}$'
+        AND CAST(p.due_date AS DATE) < CURRENT_DATE
+      ORDER BY p.due_date ASC
+    `)).rows;
     res.json({ rows });
-  } catch (err) { console.error('purchases overdue error:', err); res.status(500).json({ error:'purchases_overdue_failed' }); }
+  } catch (err) {
+    console.error('purchases overdue error:', err);
+    res.json({ rows: [], warning: 'purchases_overdue_failed' });
+  }
 });
+
 app.get('/api/equipment/search', authRequired, async (req, res) => {
   try {
     const { keyword = '', category = '', date_from = '', date_to = '', cost_min = '', cost_max = '', price_min = '', price_max = '', profit_min = '', profit_max = '' } = req.query;
