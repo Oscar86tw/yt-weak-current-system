@@ -760,6 +760,248 @@ app.get('/api/clients/:id/history', authRequired, async (req,res) => {
   res.json({ count: rows.length, total_amount, rows });
 });
 
+
+app.get('/api/dashboard/top-clients', authRequired, async (req, res) => {
+  try {
+    const rows = (await pool.query(`
+      SELECT COALESCE(c.client_name,'未指定客戶') AS client_name,
+             COUNT(q.id)::int AS quote_count,
+             COALESCE(SUM(q.total),0) AS total_amount,
+             MAX(q.quote_date) AS last_date
+      FROM quotes q
+      LEFT JOIN clients c ON c.id=q.client_id
+      GROUP BY COALESCE(c.client_name,'未指定客戶')
+      ORDER BY total_amount DESC
+      LIMIT 10
+    `)).rows;
+    res.json({ rows });
+  } catch (err) {
+    console.error('dashboard top clients error:', err);
+    res.json({ rows: [], warning: 'top_clients_failed' });
+  }
+});
+
+app.get('/api/dashboard/top-suppliers', authRequired, async (req, res) => {
+  try {
+    const rows = (await pool.query(`
+      SELECT COALESCE(s.name,'未指定供應商') AS supplier_name,
+             COUNT(p.id)::int AS purchase_count,
+             COALESCE(SUM(p.total_amount),0) AS total_amount,
+             COALESCE(SUM(p.remaining_amount),0) AS unpaid_amount,
+             MAX(p.purchase_date) AS last_date
+      FROM purchases p
+      LEFT JOIN suppliers s ON s.id=p.supplier_id
+      GROUP BY COALESCE(s.name,'未指定供應商')
+      ORDER BY total_amount DESC
+      LIMIT 10
+    `)).rows;
+    res.json({ rows });
+  } catch (err) {
+    console.error('dashboard top suppliers error:', err);
+    res.json({ rows: [], warning: 'top_suppliers_failed' });
+  }
+});
+
+app.get('/api/dashboard/equipment-profit-rank', authRequired, async (req, res) => {
+  try {
+    const rows = (await pool.query(`
+      SELECT COALESCE(category,'未分類') AS category,
+             COALESCE(name,'未命名設備') AS name,
+             COALESCE(spec,'') AS spec,
+             COALESCE(cost,0) AS cost,
+             COALESCE(price,0) AS price,
+             COALESCE(profit,0) AS profit
+      FROM equipment
+      ORDER BY COALESCE(profit,0) DESC, COALESCE(price,0) DESC
+      LIMIT 10
+    `)).rows;
+    res.json({ rows });
+  } catch (err) {
+    console.error('equipment profit rank error:', err);
+    res.json({ rows: [], warning: 'equipment_profit_rank_failed' });
+  }
+});
+
+app.get('/api/dashboard/project-profit', authRequired, async (req, res) => {
+  try {
+    const rows = (await pool.query(`
+      SELECT 
+        q.id,
+        q.quote_no,
+        q.quote_date,
+        COALESCE(c.client_name,'未指定客戶') AS client_name,
+        COALESCE(q.project_name,'未命名工程') AS project_name,
+        COALESCE(q.total,0) AS quote_total,
+        COALESCE(SUM(p.total_amount),0) AS purchase_total,
+        COALESCE(q.total,0) - COALESCE(SUM(p.total_amount),0) AS gross_profit,
+        CASE
+          WHEN COALESCE(q.total,0) > 0 
+          THEN ROUND(((COALESCE(q.total,0) - COALESCE(SUM(p.total_amount),0)) / q.total::numeric) * 100, 2)
+          ELSE 0
+        END AS gross_margin
+      FROM quotes q
+      LEFT JOIN clients c ON c.id=q.client_id
+      LEFT JOIN purchases p ON p.quote_id=q.id
+      GROUP BY q.id, q.quote_no, q.quote_date, c.client_name, q.project_name, q.total
+      ORDER BY q.quote_date DESC, q.id DESC
+      LIMIT 100
+    `)).rows;
+    res.json({ rows });
+  } catch (err) {
+    console.error('project profit error:', err);
+    res.json({ rows: [], warning: 'project_profit_failed' });
+  }
+});
+
+app.get('/api/dashboard/project-profit-summary', authRequired, async (req, res) => {
+  try {
+    const row = (await pool.query(`
+      WITH x AS (
+        SELECT 
+          q.id,
+          COALESCE(q.total,0) AS quote_total,
+          COALESCE(SUM(p.total_amount),0) AS purchase_total,
+          COALESCE(q.total,0) - COALESCE(SUM(p.total_amount),0) AS gross_profit
+        FROM quotes q
+        LEFT JOIN purchases p ON p.quote_id=q.id
+        GROUP BY q.id, q.total
+      )
+      SELECT
+        COUNT(*)::int AS project_count,
+        COALESCE(SUM(quote_total),0) AS total_quote_amount,
+        COALESCE(SUM(purchase_total),0) AS total_purchase_amount,
+        COALESCE(SUM(gross_profit),0) AS total_gross_profit,
+        COUNT(*) FILTER (WHERE gross_profit < 0)::int AS loss_count,
+        COUNT(*) FILTER (WHERE gross_profit >= 0 AND gross_profit < 1000)::int AS low_profit_count
+      FROM x
+    `)).rows[0] || {};
+    res.json({
+      project_count: Number(row.project_count || 0),
+      total_quote_amount: Number(row.total_quote_amount || 0),
+      total_purchase_amount: Number(row.total_purchase_amount || 0),
+      total_gross_profit: Number(row.total_gross_profit || 0),
+      loss_count: Number(row.loss_count || 0),
+      low_profit_count: Number(row.low_profit_count || 0)
+    });
+  } catch (err) {
+    console.error('project profit summary error:', err);
+    res.json({ project_count:0,total_quote_amount:0,total_purchase_amount:0,total_gross_profit:0,loss_count:0,low_profit_count:0, warning:'project_profit_summary_failed' });
+  }
+});
+
+
+app.get('/api/projects/workspace', authRequired, async (req, res) => {
+  try {
+    const keyword = String(req.query.keyword || '').trim();
+    const signStatus = String(req.query.sign_status || '').trim();
+    const progress = String(req.query.progress || '').trim();
+    const clientId = String(req.query.client_id || '').trim();
+    const params = [];
+    let where = [];
+    if (keyword) {
+      params.push(`%${keyword}%`);
+      const idx = params.length;
+      where.push(`(q.quote_no ILIKE $${idx} OR q.project_name ILIKE $${idx} OR COALESCE(c.client_name,'') ILIKE $${idx})`);
+    }
+    if (signStatus) {
+      params.push(signStatus);
+      where.push(`COALESCE(q.sign_status,'') = $${params.length}`);
+    }
+    if (progress) {
+      params.push(progress);
+      where.push(`COALESCE(q.progress,'') = $${params.length}`);
+    }
+    if (clientId && /^\d+$/.test(clientId)) {
+      params.push(Number(clientId));
+      where.push(`q.client_id = $${params.length}`);
+    }
+    const sql = `
+      SELECT
+        q.id,
+        q.quote_no,
+        q.quote_date,
+        q.client_id,
+        COALESCE(c.client_name,'未指定客戶') AS client_name,
+        COALESCE(q.project_name,'未命名工程') AS project_name,
+        COALESCE(q.total,0) AS quote_total,
+        COALESCE(q.sign_status,'尚未簽核') AS sign_status,
+        COALESCE(q.progress,'待安排') AS progress,
+        COALESCE(COUNT(p.id),0)::int AS purchase_count,
+        COALESCE(SUM(p.total_amount),0) AS purchase_total,
+        COALESCE(q.total,0) - COALESCE(SUM(p.total_amount),0) AS gross_profit,
+        CASE
+          WHEN COALESCE(q.total,0) > 0
+          THEN ROUND(((COALESCE(q.total,0) - COALESCE(SUM(p.total_amount),0)) / q.total::numeric) * 100, 2)
+          ELSE 0
+        END AS gross_margin,
+        MAX(p.purchase_date) AS last_purchase_date
+      FROM quotes q
+      LEFT JOIN clients c ON c.id = q.client_id
+      LEFT JOIN purchases p ON p.quote_id = q.id
+      ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+      GROUP BY q.id, q.quote_no, q.quote_date, q.client_id, c.client_name, q.project_name, q.total, q.sign_status, q.progress
+      ORDER BY q.quote_date DESC, q.id DESC
+      LIMIT 200
+    `;
+    const rows = (await pool.query(sql, params)).rows;
+    res.json({ rows });
+  } catch (err) {
+    console.error('projects workspace error:', err);
+    res.json({ rows: [], warning: 'projects_workspace_failed' });
+  }
+});
+
+app.put('/api/projects/:id/workspace-status', authRequired, async (req, res) => {
+  try {
+    const id = Number(req.params.id || 0);
+    if (!id) return res.status(400).json({ error: 'invalid_id' });
+    const signStatus = String(req.body?.sign_status || '').trim() || '尚未簽核';
+    const progress = String(req.body?.progress || '').trim() || '待安排';
+    const row = (await pool.query(
+      `UPDATE quotes SET sign_status=$1, progress=$2, updated_at=CURRENT_TIMESTAMP WHERE id=$3 RETURNING id, sign_status, progress`,
+      [signStatus, progress, id]
+    )).rows[0];
+    if (!row) return res.status(404).json({ error: 'not_found' });
+    res.json(row);
+  } catch (err) {
+    console.error('projects workspace status error:', err);
+    res.status(500).json({ error: 'projects_workspace_status_failed', detail: err.message });
+  }
+});
+
+app.get('/api/projects/:id/detail', authRequired, async (req, res) => {
+  try {
+    const id = Number(req.params.id || 0);
+    if (!id) return res.status(400).json({ error: 'invalid_id' });
+    const quote = (await pool.query(`
+      SELECT q.*, COALESCE(c.client_name,'未指定客戶') AS client_name
+      FROM quotes q
+      LEFT JOIN clients c ON c.id = q.client_id
+      WHERE q.id=$1
+    `, [id])).rows[0];
+    if (!quote) return res.status(404).json({ error: 'not_found' });
+    const purchases = (await pool.query(`
+      SELECT p.id, p.purchase_no, p.purchase_date, COALESCE(s.name,'未指定供應商') AS supplier_name,
+             COALESCE(p.total_amount,0) AS total_amount, COALESCE(p.paid_amount,0) AS paid_amount,
+             COALESCE(p.remaining_amount,0) AS remaining_amount, COALESCE(p.payment_status,'未付款') AS payment_status
+      FROM purchases p
+      LEFT JOIN suppliers s ON s.id = p.supplier_id
+      WHERE p.quote_id=$1
+      ORDER BY p.purchase_date DESC, p.id DESC
+    `, [id])).rows;
+    const quoteItems = (await pool.query(`
+      SELECT item_order, item_desc, spec, qty, unit_price, item_total
+      FROM quote_items
+      WHERE quote_id=$1
+      ORDER BY item_order ASC, id ASC
+    `, [id])).rows;
+    res.json({ quote, purchases, quote_items: quoteItems });
+  } catch (err) {
+    console.error('project detail error:', err);
+    res.status(500).json({ error: 'project_detail_failed', detail: err.message });
+  }
+});
+
 app.get('/api/export/clients', authRequired, async (req,res) => {
   const rows = (await pool.query(`SELECT client_name AS "客戶名稱", tax_id AS "統一編號", contact_person AS "聯絡人", phone AS "電話", address AS "地址", job_title AS "職位" FROM clients ORDER BY id DESC`)).rows;
   sendExcel(res, 'clients.xlsx', rows, 'clients');

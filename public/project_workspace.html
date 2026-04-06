@@ -1,0 +1,207 @@
+<!DOCTYPE html><html lang="zh-Hant"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>案件工作台｜昱拓弱電</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/forms-template.css">
+</head><body><div id="app"></div><script src="/js/common.js"></script><script>
+function money(v){ return Number(v||0).toLocaleString('zh-TW'); }
+function profitClass(v){ return Number(v||0) < 0 ? 'profit-bad' : Number(v||0) < 1000 ? 'profit-warn' : 'profit-good'; }
+
+let clients = [], rows = [], activeId = null;
+
+function filters(){
+  return {
+    keyword: keyword.value,
+    client_id: client_id.value,
+    sign_status: sign_status.value,
+    progress: progress.value
+  };
+}
+
+async function loadWorkspace(){
+  const data = await API.projectsWorkspace(filters());
+  rows = data.rows || [];
+  renderCards();
+  renderKpi();
+  if(rows.length && !activeId){
+    activeId = rows[0].id;
+    loadDetail(activeId);
+  } else if(!rows.length){
+    activeId = null;
+    detail.innerHTML = '<div class="small-note">目前沒有符合條件的案件</div>';
+  }
+}
+
+function renderKpi(){
+  const total = rows.reduce((s,r)=>s+Number(r.quote_total||0),0);
+  const cost = rows.reduce((s,r)=>s+Number(r.purchase_total||0),0);
+  const profit = total - cost;
+  const unsigned = rows.filter(r=>r.sign_status === '尚未簽核').length;
+  kpi.innerHTML = `
+    <div class="box"><div class="t">案件數</div><div class="v">${rows.length}</div></div>
+    <div class="box"><div class="t">報價總額</div><div class="v">NT$ ${money(total)}</div></div>
+    <div class="box"><div class="t">進貨總額</div><div class="v">NT$ ${money(cost)}</div></div>
+    <div class="box"><div class="t">毛利 / 未簽核</div><div class="v ${profitClass(profit)}">NT$ ${money(profit)} / ${unsigned} 筆</div></div>
+  `;
+}
+
+function renderCards(){
+  cards.innerHTML = rows.map(r => `
+    <div class="ws-card">
+      <strong>${r.quote_no || '未編號'}｜${r.project_name || '未命名工程'}</strong>
+      <div class="ws-meta">
+        日期：${r.quote_date || '—'}　客戶：${r.client_name || '—'}<br>
+        報價：NT$ ${money(r.quote_total||0)}　進貨：NT$ ${money(r.purchase_total||0)}　
+毛利：<span class="${profitClass(r.gross_profit)}">NT$ ${money(r.gross_profit||0)}（${r.gross_margin||0}%）</span><br>
+        採購筆數：${r.purchase_count||0}　最後進貨：${r.last_purchase_date || '—'}
+      </div>
+      <div class="form-row" style="margin-top:10px">
+        <div>
+          <label>簽核狀況</label>
+          <select id="sign_${r.id}">
+            <option value="尚未簽核" ${r.sign_status==='尚未簽核'?'selected':''}>尚未簽核</option>
+            <option value="同意施作" ${r.sign_status==='同意施作'?'selected':''}>同意施作</option>
+            <option value="先換待核" ${r.sign_status==='先換待核'?'selected':''}>先換待核</option>
+          </select>
+        </div>
+        <div>
+          <label>進度</label>
+          <select id="prog_${r.id}">
+            <option value="待安排" ${r.progress==='待安排'?'selected':''}>待安排</option>
+            <option value="進行中" ${r.progress==='進行中'?'selected':''}>進行中</option>
+            <option value="已完成" ${r.progress==='已完成'?'selected':''}>已完成</option>
+          </select>
+        </div>
+      </div>
+      <div class="ws-toolbar">
+        <button onclick="saveStatus(${r.id})">更新狀態</button>
+        <button class="light" onclick="showDetail(${r.id})">看明細</button>
+        <a href="/quote.html?id=${r.id}" class="light">開報價單</a>
+        <button class="light" onclick="downloadFile('/api/quotes/${r.id}/pdf')">PDF</button>
+      </div>
+    </div>
+  `).join('') || '<div class="small-note">查無案件資料</div>';
+}
+
+async function saveStatus(id){
+  try{
+    await API.updateProjectWorkspaceStatus(id, {
+      sign_status: document.getElementById('sign_' + id).value,
+      progress: document.getElementById('prog_' + id).value
+    });
+    await loadWorkspace();
+    alert('案件狀態已更新');
+  }catch(err){
+    alert('更新失敗：' + err.message);
+  }
+}
+
+function showDetail(id){
+  activeId = id;
+  loadDetail(id);
+}
+
+async function loadDetail(id){
+  try{
+    const data = await API.projectDetail(id);
+    const q = data.quote || {};
+    const purchases = data.purchases || [];
+    const items = data.quote_items || [];
+    detail.innerHTML = `
+      <div class="detail-panel">
+        <div class="detail-section">
+          <h4>案件摘要</h4>
+          <div class="ws-meta">
+            單號：${q.quote_no || '—'}<br>
+            客戶：${q.client_name || '—'}<br>
+            工程名稱：${q.project_name || '—'}<br>
+            日期：${q.quote_date || '—'}<br>
+            總額：NT$ ${money(q.total || 0)}　簽核：${q.sign_status || '尚未簽核'}　進度：${q.progress || '待安排'}
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h4>報價明細</h4>
+          <table class="subtable">
+            <thead><tr><th>項次</th><th>估價事項</th><th>規格</th><th>數量</th><th>單價</th><th>小計</th></tr></thead>
+            <tbody>
+              ${items.length ? items.map(i=>`<tr><td>${i.item_order||''}</td><td>${i.item_desc||''}</td><td>${i.spec||''}</td><td>${i.qty||0}</td><td>NT$ ${money(i.unit_price||0)}</td><td>NT$ ${money(i.item_total||0)}</td></tr>`).join('') : '<tr><td colspan="6">目前沒有報價明細</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="detail-section">
+          <h4>對應進貨單</h4>
+          <table class="subtable">
+            <thead><tr><th>進貨單號</th><th>日期</th><th>供應商</th><th>總額</th><th>已付</th><th>未付</th><th>狀態</th></tr></thead>
+            <tbody>
+              ${purchases.length ? purchases.map(p=>`<tr><td>${p.purchase_no||''}</td><td>${p.purchase_date||''}</td><td>${p.supplier_name||''}</td><td>NT$ ${money(p.total_amount||0)}</td><td>NT$ ${money(p.paid_amount||0)}</td><td>NT$ ${money(p.remaining_amount||0)}</td><td>${p.payment_status||''}</td></tr>`).join('') : '<tr><td colspan="7">目前沒有對應進貨單</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }catch(err){
+    detail.innerHTML = '<div class="small-note">案件明細載入失敗：' + err.message + '</div>';
+  }
+}
+
+function quick(mode){
+  if(mode==='unsigned'){ sign_status.value='尚未簽核'; progress.value=''; }
+  if(mode==='pending'){ sign_status.value=''; progress.value='待安排'; }
+  if(mode==='running'){ sign_status.value=''; progress.value='進行中'; }
+  if(mode==='approved'){ sign_status.value='同意施作'; progress.value=''; }
+  loadWorkspace();
+}
+
+(async()=>{
+  clients = await API.getClients();
+  document.getElementById('app').innerHTML = shell('案件中心 / 工作台', `
+    <div class="form-wrap">
+      <div class="form-topbar">
+        <div class="form-brand">
+          <h1>昱拓弱電有限公司｜V3.14.1 案件工作台版</h1>
+          <p>案件中心 / 工作台</p>
+        </div>
+        <div class="form-actions no-print">
+          <button onclick="loadWorkspace()">查詢</button>
+          <button class="light" onclick="downloadFile('/api/dashboard/project-profit')">匯出案件毛利</button>
+        </div>
+      </div>
+      <div class="kpi-mini" id="kpi"></div>
+      <div class="quick-filters">
+        <button onclick="quick('unsigned')">未簽核</button>
+        <button onclick="quick('approved')">已成交</button>
+        <button onclick="quick('pending')">待安排</button>
+        <button onclick="quick('running')">進行中</button>
+      </div>
+      <div class="workspace-grid">
+        <div>
+          <div class="form-panel" style="margin-bottom:14px">
+            <div class="form-row">
+              <div><label>關鍵字</label><input id="keyword" placeholder="單號 / 客戶 / 工程名稱"></div>
+              <div><label>客戶</label><select id="client_id"><option value="">全部客戶</option>${clients.map(c=>`<option value="${c.id}">${c.client_name}</option>`).join('')}</select></div>
+            </div>
+            <div class="form-row">
+              <div><label>簽核狀況</label><select id="sign_status"><option value="">全部</option><option value="尚未簽核">尚未簽核</option><option value="同意施作">同意施作</option><option value="先換待核">先換待核</option></select></div>
+              <div><label>進度</label><select id="progress"><option value="">全部</option><option value="待安排">待安排</option><option value="進行中">進行中</option><option value="已完成">已完成</option></select></div>
+            </div>
+          </div>
+          <div class="workspace-cards" id="cards"></div>
+        </div>
+        <div id="detail"><div class="small-note">請先選擇案件查看明細</div></div>
+      </div>
+    </div>
+  `);
+  window.kpi = document.getElementById('kpi');
+  window.cards = document.getElementById('cards');
+  window.detail = document.getElementById('detail');
+  window.keyword = document.getElementById('keyword');
+  window.client_id = document.getElementById('client_id');
+  window.sign_status = document.getElementById('sign_status');
+  window.progress = document.getElementById('progress');
+  await loadWorkspace();
+})().catch(err=>{
+  document.body.innerHTML = '<div style="padding:24px;font-family:Arial">案件工作台載入失敗：'+ err.message +'</div>';
+});
+</script></body></html>

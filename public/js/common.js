@@ -252,3 +252,13 @@ function monthRange(offset = 0){
   const last = `${y}-${m}-${String(lastDate).padStart(2,'0')}`;
   return { first, last };
 }
+
+API.dashboardTopClients = async () => jsonOrThrow(await API.request('/api/dashboard/top-clients'));
+API.dashboardTopSuppliers = async () => jsonOrThrow(await API.request('/api/dashboard/top-suppliers'));
+API.dashboardEquipmentProfitRank = async () => jsonOrThrow(await API.request('/api/dashboard/equipment-profit-rank'));
+API.dashboardProjectProfit = async () => jsonOrThrow(await API.request('/api/dashboard/project-profit'));
+API.dashboardProjectProfitSummary = async () => jsonOrThrow(await API.request('/api/dashboard/project-profit-summary'));
+
+API.projectsWorkspace = async (params={}) => jsonOrThrow(await API.request('/api/projects/workspace?' + new URLSearchParams(params)));
+API.updateProjectWorkspaceStatus = async (id,payload) => jsonOrThrow(await API.request('/api/projects/' + id + '/workspace-status', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) }));
+API.projectDetail = async (id) => jsonOrThrow(await API.request('/api/projects/' + id + '/detail'));

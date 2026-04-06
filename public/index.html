@@ -6,6 +6,7 @@
 </head><body><div id="app"></div><script src="/js/common.js"></script><script>
 function money(v){ return Number(v||0).toLocaleString('zh-TW'); }
 function pct(value,total){ return total>0 ? Math.round((value/total)*100) : 0; }
+function profitClass(v){ return Number(v||0) < 0 ? 'profit-bad' : Number(v||0) < 1000 ? 'profit-warn' : 'profit-good'; }
 async function safeCall(fn, fallback){
   try{ return await fn(); }catch(err){ console.error('dashboard block error:', err); return fallback; }
 }
@@ -14,42 +15,53 @@ async function loadDashboard(){
   const purchaseSummary = await safeCall(()=>API.purchaseSummary(), {month_count:0, month_total:0, paid_total:0, unpaid_total:0, unpaid_count:0, warning:'purchases_summary_failed'});
   const purchaseOverdue = await safeCall(()=>API.purchaseOverdue(), {rows:[], warning:'purchases_overdue_failed'});
   const equipmentSummary = await safeCall(()=>API.equipmentSummary(), {total_count:0, new_this_month:0, avg_price:0, avg_profit:0, high_profit_count:0});
+  const finance = await safeCall(()=>API.dashboardFinance(), {total_receivable:0, month_receivable:0, total_paid:0, total_payable:0, month_paid:0, month_payable:0, warning:'dashboard_finance_failed'});
+  const profit = await safeCall(()=>API.dashboardProfit(), {approved_quote_total:0, purchase_total:0, gross_profit:0, gross_margin:0, month_approved_quote_total:0, month_purchase_total:0, month_gross_profit:0, month_gross_margin:0, warning:'dashboard_profit_failed'});
+  const topClients = await safeCall(()=>API.dashboardTopClients(), {rows:[], warning:'top_clients_failed'});
+  const topSuppliers = await safeCall(()=>API.dashboardTopSuppliers(), {rows:[], warning:'top_suppliers_failed'});
+  const equipmentRank = await safeCall(()=>API.dashboardEquipmentProfitRank(), {rows:[], warning:'equipment_profit_rank_failed'});
+  const projectProfit = await safeCall(()=>API.dashboardProjectProfit(), {rows:[], warning:'project_profit_failed'});
+  const projectProfitSummary = await safeCall(()=>API.dashboardProjectProfitSummary(), {project_count:0,total_quote_amount:0,total_purchase_amount:0,total_gross_profit:0,loss_count:0,low_profit_count:0, warning:'project_profit_summary_failed'});
   const recentQuotes = await safeCall(()=>API.searchQuotes({}), {rows:[]});
   const recentPurchases = await safeCall(()=>API.searchPurchases({}), {rows:[]});
 
   const qRows = (recentQuotes.rows||[]).slice(0,5);
   const pRows = (recentPurchases.rows||[]).slice(0,5);
   const overdueRows = (purchaseOverdue.rows||[]).slice(0,5);
+  const profitRows = (projectProfit.rows||[]).slice(0,10);
 
   const signed = Number(quoteSummary.approved_total||0);
   const monthTotal = Number(quoteSummary.month_total||0);
   const unsignedCount = Number(quoteSummary.unsigned_count||0);
   const pendingCount = Number(quoteSummary.pending_count||0);
-
   const unpaid = Number(purchaseSummary.unpaid_total||0);
   const paid = Number(purchaseSummary.paid_total||0);
   const overdueCount = (purchaseOverdue.rows||[]).length;
-
   const avgProfit = Number(equipmentSummary.avg_profit||0);
   const avgPrice = Number(equipmentSummary.avg_price||0);
   const highProfit = Number(equipmentSummary.high_profit_count||0);
 
   const warn = [];
-  if(quoteSummary.warning) warn.push('報價摘要安全模式');
-  if(purchaseSummary.warning) warn.push('進貨摘要安全模式');
-  if(purchaseOverdue.warning) warn.push('逾期提醒安全模式');
+  [quoteSummary,purchaseSummary,purchaseOverdue,finance,profit,topClients,topSuppliers,equipmentRank,projectProfitSummary].forEach(x=>{ if(x.warning) warn.push(x.warning); });
 
   const html = `
     <section class="hero2">
-      <h2>首頁儀表板</h2>
-      <p>案件、進貨、設備與風險提醒整合在同一頁，方便每天先看重點再進入各模組。</p>
-      ${warn.length ? `<div class="small-note" style="margin-top:10px;color:#dbeafe;">${warn.join('｜')}</div>` : ''}
+      <h2>首頁儀表板｜案件中心毛利版</h2>
+      <p>把案件、應收應付、毛利、排行與風險提醒整合到同一頁，讓你一打開就知道現在要先處理哪一塊。</p>
+      ${warn.length ? `<div class="small-note" style="margin-top:10px;color:#dbeafe;">安全模式：${warn.join('｜')}</div>` : ''}
     </section>
 
     <section class="kpi-grid">
       <div class="kpi"><h3>今日報價單</h3><div class="big">${quoteSummary.today_count||0}</div><div class="sub">今日建立筆數</div></div>
       <div class="kpi"><h3>本月報價總額</h3><div class="big">NT$ ${money(monthTotal)}</div><div class="sub">本月報價總金額</div></div>
       <div class="kpi"><h3>本月進貨總額</h3><div class="big">NT$ ${money(purchaseSummary.month_total||0)}</div><div class="sub">進貨支出金額</div></div>
+      <div class="kpi"><h3>本月毛利</h3><div class="big">NT$ ${money(profit.month_gross_profit||0)}</div><div class="sub">毛利率 ${profit.month_gross_margin||0}%</div></div>
+    </section>
+
+    <section class="kpi-grid">
+      <div class="kpi"><h3>本月應收</h3><div class="big">NT$ ${money(finance.month_receivable||0)}</div><div class="sub">已簽核報價應收</div></div>
+      <div class="kpi"><h3>本月已付</h3><div class="big">NT$ ${money(finance.month_paid||0)}</div><div class="sub">實際已付款</div></div>
+      <div class="kpi"><h3>總應付</h3><div class="big">NT$ ${money(finance.total_payable||0)}</div><div class="sub">供應商未付款</div></div>
       <div class="kpi"><h3>逾期未付款</h3><div class="big">${overdueCount}</div><div class="sub">需要優先追蹤</div></div>
     </section>
 
@@ -59,12 +71,12 @@ async function loadDashboard(){
         <div class="toolbar2">
           <a href="/quote.html">新增報價單</a>
           <a href="/purchase.html">新增進貨單</a>
-          <a href="/quotes.html" class="light">查詢報價</a>
+          <a href="/project_workspace.html" class="light">案件工作台</a><a href="/quotes.html" class="light">查詢報價</a>
           <a href="/purchases.html" class="light">查詢進貨</a>
           <a href="/equipment_query.html" class="light">查詢設備</a>
           <a href="/client_history.html" class="light">客戶歷史</a>
         </div>
-        <div class="small-note">建議每天先看未完成案件與逾期未付款，再決定今天優先處理的單。</div>
+        <div class="small-note">建議每天先看應收應付、毛利過低案件與逾期未付款，再排今天要處理的工作。</div>
       </div>
 
       <div class="panel">
@@ -74,6 +86,67 @@ async function loadDashboard(){
           <div class="bar-item"><div>未簽核</div><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,unsignedCount*12)}%"></div></div><div>${unsignedCount} 筆</div></div>
           <div class="bar-item"><div>待安排</div><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,pendingCount*12)}%"></div></div><div>${pendingCount} 筆</div></div>
           <div class="bar-item"><div>未付款</div><div class="bar-track"><div class="bar-fill" style="width:${pct(unpaid, unpaid+paid)}%"></div></div><div>NT$ ${money(unpaid)}</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="two-col">
+      <div class="panel">
+        <h3>應收 / 應付總覽</h3>
+        <div class="bar-list">
+          <div class="bar-item"><div>總應收</div><div class="bar-track"><div class="bar-fill" style="width:${pct(finance.total_receivable, finance.total_receivable + finance.total_payable)}%"></div></div><div>NT$ ${money(finance.total_receivable)}</div></div>
+          <div class="bar-item"><div>總應付</div><div class="bar-track"><div class="bar-fill" style="width:${pct(finance.total_payable, finance.total_receivable + finance.total_payable)}%"></div></div><div>NT$ ${money(finance.total_payable)}</div></div>
+          <div class="bar-item"><div>總毛利</div><div class="bar-track"><div class="bar-fill" style="width:${Math.max(0,Math.min(100,profit.gross_margin||0))}%"></div></div><div>NT$ ${money(profit.gross_profit)}</div></div>
+          <div class="bar-item"><div>毛利率</div><div class="bar-track"><div class="bar-fill" style="width:${Math.max(0,Math.min(100,profit.gross_margin||0))}%"></div></div><div>${profit.gross_margin||0}%</div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>風險提醒</h3>
+        <div class="list">
+          ${overdueRows.length ? overdueRows.map(r=>`<div class="rowcard"><strong>${r.purchase_no||'未編號'}｜${r.supplier_name||'未指定供應商'}</strong><div class="rowmeta">到期日：${r.due_date||'—'}　未付：NT$ ${money(r.remaining_amount||0)}<br>付款狀態：${r.payment_status||'未付款'}</div></div>`).join('') : '<div class="small-note">目前沒有逾期未付款資料</div>'}
+        </div>
+      </div>
+    </section>
+
+    <section class="two-col">
+      <div class="panel">
+        <h3>客戶排行榜 TOP 10</h3>
+        <div class="rank-list">
+          ${(topClients.rows||[]).length ? topClients.rows.map((r,i)=>`<div class="rank-item"><div class="rank-main"><strong>${i+1}. ${r.client_name}</strong><div class="rank-meta">案件數：${r.quote_count||0}　最近日期：${r.last_date||'—'}</div></div><div class="rank-value">NT$ ${money(r.total_amount||0)}</div></div>`).join('') : '<div class="small-note">目前沒有客戶排行資料</div>'}
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>供應商排行榜 TOP 10</h3>
+        <div class="rank-list">
+          ${(topSuppliers.rows||[]).length ? topSuppliers.rows.map((r,i)=>`<div class="rank-item"><div class="rank-main"><strong>${i+1}. ${r.supplier_name}</strong><div class="rank-meta">進貨筆數：${r.purchase_count||0}　未付：NT$ ${money(r.unpaid_amount||0)}　最近日期：${r.last_date||'—'}</div></div><div class="rank-value">NT$ ${money(r.total_amount||0)}</div></div>`).join('') : '<div class="small-note">目前沒有供應商排行資料</div>'}
+        </div>
+      </div>
+    </section>
+
+    <section class="two-col">
+      <div class="panel">
+        <h3>案件毛利總覽</h3>
+        <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
+          <div class="kpi"><h3>案件數</h3><div class="big">${projectProfitSummary.project_count||0}</div></div>
+          <div class="kpi"><h3>總毛利</h3><div class="big">NT$ ${money(projectProfitSummary.total_gross_profit||0)}</div></div>
+          <div class="kpi"><h3>低利潤 / 虧損</h3><div class="big">${(projectProfitSummary.low_profit_count||0) + (projectProfitSummary.loss_count||0)}</div></div>
+        </div>
+        <div class="table-box">
+          <table class="mini-table">
+            <thead><tr><th>單號</th><th>客戶</th><th>工程</th><th>報價</th><th>進貨</th><th>毛利</th><th>毛利率</th></tr></thead>
+            <tbody>
+              ${profitRows.length ? profitRows.map(r=>`<tr><td>${r.quote_no||''}</td><td>${r.client_name||''}</td><td>${r.project_name||''}</td><td>NT$ ${money(r.quote_total||0)}</td><td>NT$ ${money(r.purchase_total||0)}</td><td class="${profitClass(r.gross_profit)}">NT$ ${money(r.gross_profit||0)}</td><td class="${profitClass(r.gross_profit)}">${r.gross_margin||0}%</td></tr>`).join('') : '<tr><td colspan="7">目前沒有案件毛利資料</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>設備利潤排行榜 TOP 10</h3>
+        <div class="rank-list">
+          ${(equipmentRank.rows||[]).length ? equipmentRank.rows.map((r,i)=>`<div class="rank-item"><div class="rank-main"><strong>${i+1}. ${r.name}</strong><div class="rank-meta">類別：${r.category||'—'}　規格：${r.spec||'—'}<br>成本：NT$ ${money(r.cost||0)}　售價：NT$ ${money(r.price||0)}</div></div><div class="rank-value ${profitClass(r.profit)}">NT$ ${money(r.profit||0)}</div></div>`).join('') : '<div class="small-note">目前沒有設備利潤排行資料</div>'}
         </div>
       </div>
     </section>
@@ -90,27 +163,6 @@ async function loadDashboard(){
         <h3>最近進貨單</h3>
         <div class="list">
           ${pRows.length ? pRows.map(r=>`<div class="rowcard"><strong>${r.purchase_no||'未編號'}｜${r.supplier_name||'未指定供應商'}</strong><div class="rowmeta">日期：${r.purchase_date||'—'}　案場：${r.site_name||'—'}<br>總額：NT$ ${money(r.total_amount||0)}　已付：NT$ ${money(r.paid_amount||0)}　未付：NT$ ${money(r.remaining_amount||0)}</div></div>`).join('') : '<div class="small-note">目前沒有最近進貨資料</div>'}
-        </div>
-      </div>
-    </section>
-
-    <section class="two-col">
-      <div class="panel">
-        <h3>逾期未付款提醒</h3>
-        <div class="list">
-          ${overdueRows.length ? overdueRows.map(r=>`<div class="rowcard"><strong>${r.purchase_no||'未編號'}｜${r.supplier_name||'未指定供應商'}</strong><div class="rowmeta">到期日：${r.due_date||'—'}　未付：NT$ ${money(r.remaining_amount||0)}<br>付款狀態：${r.payment_status||'未付款'}</div></div>`).join('') : '<div class="small-note">目前沒有逾期未付款資料</div>'}
-        </div>
-      </div>
-
-      <div class="panel">
-        <h3>設備獲利概況</h3>
-        <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
-          <div class="kpi"><h3>設備總數</h3><div class="big">${equipmentSummary.total_count||0}</div></div>
-          <div class="kpi"><h3>平均售價</h3><div class="big">NT$ ${money(avgPrice)}</div></div>
-          <div class="kpi"><h3>平均利潤</h3><div class="big">NT$ ${money(avgProfit)}</div></div>
-          <div class="kpi"><h3>本月新增</h3><div class="big">${equipmentSummary.new_this_month||0}</div></div>
-          <div class="kpi"><h3>高利潤設備</h3><div class="big">${highProfit}</div></div>
-          <div class="kpi"><h3>建議動作</h3><div class="big" style="font-size:18px">${highProfit>0?'優先推高利潤品':'補建高利潤設備'}</div></div>
         </div>
       </div>
     </section>
