@@ -206,3 +206,24 @@
 .kpi-mini .box .t{font-size:12px;color:#64748b}
 .kpi-mini .box .v{font-size:22px;font-weight:800;color:#0f172a;margin-top:4px}
 @media (max-width:980px){.workspace-grid{grid-template-columns:1fr}.kpi-mini{grid-template-columns:1fr 1fr}}
+
+/* V3.14.2 lifecycle */
+.lifecycle-wrap{display:grid;grid-template-columns:1fr .95fr;gap:16px}
+.timeline{display:grid;gap:10px;margin-bottom:16px}
+.step{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid #dbe4f0;border-radius:14px;background:#fff}
+.step-dot{width:18px;height:18px;border-radius:999px;background:#cbd5e1}
+.step.done .step-dot{background:#16a34a}
+.step-title{font-weight:800}
+.step-date{font-size:12px;color:#64748b}
+.life-card{background:#fff;border:1px solid #dbe4f0;border-radius:18px;padding:14px;box-shadow:0 8px 22px rgba(15,23,42,.05)}
+.life-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.life-grid .box{background:#fff;border:1px solid #dbe4f0;border-radius:14px;padding:12px}
+.life-grid .t{font-size:12px;color:#64748b}
+.life-grid .v{font-size:22px;font-weight:800;color:#0f172a;margin-top:4px}
+.board-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.board-col{background:#f8fafc;border:1px solid #dbe4f0;border-radius:18px;padding:12px}
+.board-col h3{margin:0 0 10px;font-size:18px}
+.board-item{background:#fff;border:1px solid #dbe4f0;border-radius:14px;padding:10px;margin-bottom:10px}
+.board-item strong{display:block;margin-bottom:4px}
+.board-meta{font-size:12px;color:#64748b;line-height:1.6}
+@media (max-width:980px){.lifecycle-wrap,.board-grid{grid-template-columns:1fr}.life-grid{grid-template-columns:1fr 1fr}}

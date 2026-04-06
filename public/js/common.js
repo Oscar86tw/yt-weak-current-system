@@ -262,3 +262,6 @@ API.dashboardProjectProfitSummary = async () => jsonOrThrow(await API.request('/
 API.projectsWorkspace = async (params={}) => jsonOrThrow(await API.request('/api/projects/workspace?' + new URLSearchParams(params)));
 API.updateProjectWorkspaceStatus = async (id,payload) => jsonOrThrow(await API.request('/api/projects/' + id + '/workspace-status', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) }));
 API.projectDetail = async (id) => jsonOrThrow(await API.request('/api/projects/' + id + '/detail'));
+
+API.projectLifecycle = async (id) => jsonOrThrow(await API.request('/api/projects/' + id + '/lifecycle'));
+API.lifecycleBoard = async () => jsonOrThrow(await API.request('/api/projects/lifecycle-board'));

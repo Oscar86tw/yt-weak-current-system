@@ -1,0 +1,45 @@
+<!DOCTYPE html><html lang="zh-Hant"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>生命週期看板｜昱拓弱電</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/forms-template.css">
+</head><body><div id="app"></div><script src="/js/common.js"></script><script>
+function money(v){ return Number(v||0).toLocaleString('zh-TW'); }
+function bucket(rows){
+  return {
+    unsigned: rows.filter(r=>r.sign_status==='尚未簽核'),
+    pending: rows.filter(r=>r.sign_status==='同意施作' && r.progress==='待安排'),
+    running: rows.filter(r=>r.progress==='進行中'),
+    done: rows.filter(r=>r.progress==='已完成' || r.has_acceptance)
+  };
+}
+async function loadBoard(){
+  const data = await API.lifecycleBoard();
+  const rows = data.rows || [];
+  const g = bucket(rows);
+  const col = (title, arr, type) => `
+    <div class="board-col">
+      <h3>${title}｜${arr.length} 筆</h3>
+      ${arr.length ? arr.map(r=>`<div class="board-item"><strong>${r.quote_no||'未編號'}｜${r.project_name||'未命名工程'}</strong><div class="board-meta">客戶：${r.client_name||'—'}<br>報價：NT$ ${money(r.quote_total||0)}　進貨：NT$ ${money(r.purchase_total||0)}<br>未付：NT$ ${money(r.remaining_total||0)}　採購：${r.purchase_count||0} 筆</div><div class="ws-toolbar" style="margin-top:8px"><a class="light" href="/project_workspace.html">工作台</a><a class="light" href="/quote.html?id=${r.id}">報價單</a></div></div>`).join('') : '<div class="small-note">目前沒有資料</div>'}
+    </div>`;
+  board.innerHTML = `
+    <div class="form-wrap">
+      <div class="form-topbar">
+        <div class="form-brand">
+          <h1>昱拓弱電有限公司｜V3.14.2 案件生命週期版</h1>
+          <p>案件中心 / 生命週期看板</p>
+        </div>
+        <div class="form-actions no-print"><button onclick="window.open('/project_workspace.html','_self')">回工作台</button></div>
+      </div>
+      <div class="board-grid">
+        ${col('未簽核', g.unsigned, 'unsigned')}
+        ${col('待安排', g.pending, 'pending')}
+        ${col('進行中', g.running, 'running')}
+        ${col('已完成 / 已驗收', g.done, 'done')}
+      </div>
+    </div>`;
+}
+document.getElementById('app').innerHTML = '<div id="board" class="page-wrap"><div class="small-note" style="padding:24px">載入中…</div></div>';
+window.board = document.getElementById('board');
+loadBoard().catch(err=>{ board.innerHTML = '<div style="padding:24px">生命週期看板載入失敗：'+ err.message +'</div>'; });
+</script></body></html>

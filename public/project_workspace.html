@@ -6,32 +6,15 @@
 </head><body><div id="app"></div><script src="/js/common.js"></script><script>
 function money(v){ return Number(v||0).toLocaleString('zh-TW'); }
 function profitClass(v){ return Number(v||0) < 0 ? 'profit-bad' : Number(v||0) < 1000 ? 'profit-warn' : 'profit-good'; }
-
 let clients = [], rows = [], activeId = null;
-
-function filters(){
-  return {
-    keyword: keyword.value,
-    client_id: client_id.value,
-    sign_status: sign_status.value,
-    progress: progress.value
-  };
-}
-
+function filters(){ return { keyword: keyword.value, client_id: client_id.value, sign_status: sign_status.value, progress: progress.value }; }
 async function loadWorkspace(){
   const data = await API.projectsWorkspace(filters());
   rows = data.rows || [];
-  renderCards();
-  renderKpi();
-  if(rows.length && !activeId){
-    activeId = rows[0].id;
-    loadDetail(activeId);
-  } else if(!rows.length){
-    activeId = null;
-    detail.innerHTML = '<div class="small-note">目前沒有符合條件的案件</div>';
-  }
+  renderCards(); renderKpi();
+  if(rows.length && !activeId){ activeId = rows[0].id; loadDetail(activeId); }
+  else if(!rows.length){ activeId = null; detail.innerHTML = '<div class="small-note">目前沒有符合條件的案件</div>'; }
 }
-
 function renderKpi(){
   const total = rows.reduce((s,r)=>s+Number(r.quote_total||0),0);
   const cost = rows.reduce((s,r)=>s+Number(r.purchase_total||0),0);
@@ -44,7 +27,6 @@ function renderKpi(){
     <div class="box"><div class="t">毛利 / 未簽核</div><div class="v ${profitClass(profit)}">NT$ ${money(profit)} / ${unsigned} 筆</div></div>
   `;
 }
-
 function renderCards(){
   cards.innerHTML = rows.map(r => `
     <div class="ws-card">
@@ -56,33 +38,26 @@ function renderCards(){
         採購筆數：${r.purchase_count||0}　最後進貨：${r.last_purchase_date || '—'}
       </div>
       <div class="form-row" style="margin-top:10px">
-        <div>
-          <label>簽核狀況</label>
-          <select id="sign_${r.id}">
-            <option value="尚未簽核" ${r.sign_status==='尚未簽核'?'selected':''}>尚未簽核</option>
-            <option value="同意施作" ${r.sign_status==='同意施作'?'selected':''}>同意施作</option>
-            <option value="先換待核" ${r.sign_status==='先換待核'?'selected':''}>先換待核</option>
-          </select>
+        <div><label>簽核狀況</label><select id="sign_${r.id}">
+          <option value="尚未簽核" ${r.sign_status==='尚未簽核'?'selected':''}>尚未簽核</option>
+          <option value="同意施作" ${r.sign_status==='同意施作'?'selected':''}>同意施作</option>
+          <option value="先換待核" ${r.sign_status==='先換待核'?'selected':''}>先換待核</option></select>
         </div>
-        <div>
-          <label>進度</label>
-          <select id="prog_${r.id}">
-            <option value="待安排" ${r.progress==='待安排'?'selected':''}>待安排</option>
-            <option value="進行中" ${r.progress==='進行中'?'selected':''}>進行中</option>
-            <option value="已完成" ${r.progress==='已完成'?'selected':''}>已完成</option>
-          </select>
+        <div><label>進度</label><select id="prog_${r.id}">
+          <option value="待安排" ${r.progress==='待安排'?'selected':''}>待安排</option>
+          <option value="進行中" ${r.progress==='進行中'?'selected':''}>進行中</option>
+          <option value="已完成" ${r.progress==='已完成'?'selected':''}>已完成</option></select>
         </div>
       </div>
       <div class="ws-toolbar">
         <button onclick="saveStatus(${r.id})">更新狀態</button>
-        <button class="light" onclick="showDetail(${r.id})">看明細</button>
+        <button class="light" onclick="showDetail(${r.id})">生命週期</button>
         <a href="/quote.html?id=${r.id}" class="light">開報價單</a>
         <button class="light" onclick="downloadFile('/api/quotes/${r.id}/pdf')">PDF</button>
       </div>
     </div>
   `).join('') || '<div class="small-note">查無案件資料</div>';
 }
-
 async function saveStatus(id){
   try{
     await API.updateProjectWorkspaceStatus(id, {
@@ -91,24 +66,37 @@ async function saveStatus(id){
     });
     await loadWorkspace();
     alert('案件狀態已更新');
-  }catch(err){
-    alert('更新失敗：' + err.message);
-  }
+  }catch(err){ alert('更新失敗：' + err.message); }
 }
-
-function showDetail(id){
-  activeId = id;
-  loadDetail(id);
-}
-
+function showDetail(id){ activeId = id; loadDetail(id); }
 async function loadDetail(id){
   try{
-    const data = await API.projectDetail(id);
+    const data = await API.projectLifecycle(id);
     const q = data.quote || {};
     const purchases = data.purchases || [];
-    const items = data.quote_items || [];
+    const items = (await API.projectDetail(id)).quote_items || [];
+    const life = data.lifecycle || {};
+    const steps = life.steps || [];
     detail.innerHTML = `
-      <div class="detail-panel">
+      <div class="life-card">
+        <div class="life-grid">
+          <div class="box"><div class="t">報價總額</div><div class="v">NT$ ${money(life.quote_total||0)}</div></div>
+          <div class="box"><div class="t">進貨總額</div><div class="v">NT$ ${money(life.purchase_total||0)}</div></div>
+          <div class="box"><div class="t">已付總額</div><div class="v">NT$ ${money(life.paid_total||0)}</div></div>
+          <div class="box"><div class="t">未付總額</div><div class="v">NT$ ${money(life.remaining_total||0)}</div></div>
+        </div>
+        <div class="life-grid" style="grid-template-columns:repeat(2,1fr)">
+          <div class="box"><div class="t">毛利</div><div class="v ${profitClass(life.gross_profit)}">NT$ ${money(life.gross_profit||0)}</div></div>
+          <div class="box"><div class="t">毛利率</div><div class="v ${profitClass(life.gross_profit)}">${life.gross_margin||0}%</div></div>
+        </div>
+
+        <div class="detail-section">
+          <h4>案件生命週期</h4>
+          <div class="timeline">
+            ${steps.map(s=>`<div class="step ${s.done?'done':''}"><div class="step-dot"></div><div><div class="step-title">${s.label}</div></div><div class="step-date">${s.date||''}</div></div>`).join('')}
+          </div>
+        </div>
+
         <div class="detail-section">
           <h4>案件摘要</h4>
           <div class="ws-meta">
@@ -141,11 +129,8 @@ async function loadDetail(id){
         </div>
       </div>
     `;
-  }catch(err){
-    detail.innerHTML = '<div class="small-note">案件明細載入失敗：' + err.message + '</div>';
-  }
+  }catch(err){ detail.innerHTML = '<div class="small-note">案件生命週期載入失敗：' + err.message + '</div>'; }
 }
-
 function quick(mode){
   if(mode==='unsigned'){ sign_status.value='尚未簽核'; progress.value=''; }
   if(mode==='pending'){ sign_status.value=''; progress.value='待安排'; }
@@ -153,19 +138,18 @@ function quick(mode){
   if(mode==='approved'){ sign_status.value='同意施作'; progress.value=''; }
   loadWorkspace();
 }
-
 (async()=>{
   clients = await API.getClients();
   document.getElementById('app').innerHTML = shell('案件中心 / 工作台', `
     <div class="form-wrap">
       <div class="form-topbar">
         <div class="form-brand">
-          <h1>昱拓弱電有限公司｜V3.14.1 案件工作台版</h1>
+          <h1>昱拓弱電有限公司｜V3.14.2 案件生命週期版</h1>
           <p>案件中心 / 工作台</p>
         </div>
         <div class="form-actions no-print">
           <button onclick="loadWorkspace()">查詢</button>
-          <button class="light" onclick="downloadFile('/api/dashboard/project-profit')">匯出案件毛利</button>
+          <button class="light" onclick="window.open('/project_lifecycle_board.html','_self')">生命週期看板</button>
         </div>
       </div>
       <div class="kpi-mini" id="kpi"></div>
@@ -175,7 +159,7 @@ function quick(mode){
         <button onclick="quick('pending')">待安排</button>
         <button onclick="quick('running')">進行中</button>
       </div>
-      <div class="workspace-grid">
+      <div class="lifecycle-wrap">
         <div>
           <div class="form-panel" style="margin-bottom:14px">
             <div class="form-row">
@@ -189,7 +173,7 @@ function quick(mode){
           </div>
           <div class="workspace-cards" id="cards"></div>
         </div>
-        <div id="detail"><div class="small-note">請先選擇案件查看明細</div></div>
+        <div id="detail"><div class="small-note">請先選擇案件查看生命週期</div></div>
       </div>
     </div>
   `);
@@ -201,7 +185,5 @@ function quick(mode){
   window.sign_status = document.getElementById('sign_status');
   window.progress = document.getElementById('progress');
   await loadWorkspace();
-})().catch(err=>{
-  document.body.innerHTML = '<div style="padding:24px;font-family:Arial">案件工作台載入失敗：'+ err.message +'</div>';
-});
+})().catch(err=>{ document.body.innerHTML = '<div style="padding:24px;font-family:Arial">案件工作台載入失敗：'+ err.message +'</div>'; });
 </script></body></html>

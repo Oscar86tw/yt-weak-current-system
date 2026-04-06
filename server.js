@@ -1002,6 +1002,116 @@ app.get('/api/projects/:id/detail', authRequired, async (req, res) => {
   }
 });
 
+
+app.get('/api/projects/:id/lifecycle', authRequired, async (req, res) => {
+  try {
+    const id = Number(req.params.id || 0);
+    if (!id) return res.status(400).json({ error: 'invalid_id' });
+
+    const quote = (await pool.query(`
+      SELECT q.*, COALESCE(c.client_name,'未指定客戶') AS client_name
+      FROM quotes q
+      LEFT JOIN clients c ON c.id=q.client_id
+      WHERE q.id=$1
+    `,[id])).rows[0];
+    if (!quote) return res.status(404).json({ error: 'not_found' });
+
+    const purchases = (await pool.query(`
+      SELECT p.id, p.purchase_no, p.purchase_date, COALESCE(s.name,'未指定供應商') AS supplier_name,
+             COALESCE(p.total_amount,0) AS total_amount, COALESCE(p.paid_amount,0) AS paid_amount,
+             COALESCE(p.remaining_amount,0) AS remaining_amount, COALESCE(p.payment_status,'未付款') AS payment_status,
+             COALESCE(p.due_date,'') AS due_date
+      FROM purchases p
+      LEFT JOIN suppliers s ON s.id=p.supplier_id
+      WHERE p.quote_id=$1
+      ORDER BY p.purchase_date DESC, p.id DESC
+    `,[id])).rows;
+
+    const contracts = (await pool.query(`
+      SELECT id, doc_no, doc_date, contract_name, amount
+      FROM contracts
+      WHERE client_id=$1
+      ORDER BY doc_date DESC, id DESC
+      LIMIT 20
+    `,[quote.client_id])).rows;
+
+    const acceptances = (await pool.query(`
+      SELECT id, doc_no, doc_date, content, note
+      FROM acceptances
+      WHERE client_id=$1
+      ORDER BY doc_date DESC, id DESC
+      LIMIT 20
+    `,[quote.client_id])).rows;
+
+    const purchase_total = purchases.reduce((s,r)=>s + Number(r.total_amount||0),0);
+    const paid_total = purchases.reduce((s,r)=>s + Number(r.paid_amount||0),0);
+    const remaining_total = purchases.reduce((s,r)=>s + Number(r.remaining_amount||0),0);
+    const quote_total = Number(quote.total || 0);
+    const gross_profit = quote_total - purchase_total;
+    const gross_margin = quote_total > 0 ? Math.round((gross_profit / quote_total) * 10000) / 100 : 0;
+
+    const steps = [
+      { key: 'quote_created', label: '已建立報價', done: !!quote.id, date: quote.quote_date || '' },
+      { key: 'quote_signed', label: '已簽核', done: String(quote.sign_status||'') === '同意施作', date: quote.quote_date || '' },
+      { key: 'purchase_created', label: '已建立進貨', done: purchases.length > 0, date: purchases[0]?.purchase_date || '' },
+      { key: 'running', label: '施工中', done: String(quote.progress||'') === '進行中', date: '' },
+      { key: 'accepted', label: '已驗收', done: acceptances.length > 0 || String(quote.progress||'') === '已完成', date: acceptances[0]?.doc_date || '' },
+      { key: 'paid', label: '已完成付款', done: remaining_total <= 0 && purchases.length > 0, date: '' }
+    ];
+
+    res.json({
+      quote,
+      purchases,
+      contracts,
+      acceptances,
+      lifecycle: {
+        quote_total,
+        purchase_total,
+        paid_total,
+        remaining_total,
+        gross_profit,
+        gross_margin,
+        steps
+      }
+    });
+  } catch (err) {
+    console.error('project lifecycle error:', err);
+    res.status(500).json({ error: 'project_lifecycle_failed', detail: err.message });
+  }
+});
+
+app.get('/api/projects/lifecycle-board', authRequired, async (req, res) => {
+  try {
+    const rows = (await pool.query(`
+      SELECT
+        q.id,
+        q.quote_no,
+        q.quote_date,
+        COALESCE(c.client_name,'未指定客戶') AS client_name,
+        COALESCE(q.project_name,'未命名工程') AS project_name,
+        COALESCE(q.sign_status,'尚未簽核') AS sign_status,
+        COALESCE(q.progress,'待安排') AS progress,
+        COALESCE(q.total,0) AS quote_total,
+        COALESCE(SUM(p.total_amount),0) AS purchase_total,
+        COALESCE(SUM(p.remaining_amount),0) AS remaining_total,
+        COALESCE(COUNT(p.id),0)::int AS purchase_count,
+        CASE WHEN EXISTS (
+          SELECT 1 FROM acceptances a WHERE a.client_id=q.client_id
+        ) THEN TRUE ELSE FALSE END AS has_acceptance
+      FROM quotes q
+      LEFT JOIN clients c ON c.id=q.client_id
+      LEFT JOIN purchases p ON p.quote_id=q.id
+      GROUP BY q.id, q.quote_no, q.quote_date, c.client_name, q.project_name, q.sign_status, q.progress, q.total, q.client_id
+      ORDER BY q.quote_date DESC, q.id DESC
+      LIMIT 200
+    `)).rows;
+    res.json({ rows });
+  } catch (err) {
+    console.error('lifecycle board error:', err);
+    res.json({ rows: [], warning: 'lifecycle_board_failed' });
+  }
+});
+
 app.get('/api/export/clients', authRequired, async (req,res) => {
   const rows = (await pool.query(`SELECT client_name AS "客戶名稱", tax_id AS "統一編號", contact_person AS "聯絡人", phone AS "電話", address AS "地址", job_title AS "職位" FROM clients ORDER BY id DESC`)).rows;
   sendExcel(res, 'clients.xlsx', rows, 'clients');
