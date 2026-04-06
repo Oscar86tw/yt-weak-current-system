@@ -265,3 +265,21 @@ API.projectDetail = async (id) => jsonOrThrow(await API.request('/api/projects/'
 
 API.projectLifecycle = async (id) => jsonOrThrow(await API.request('/api/projects/' + id + '/lifecycle'));
 API.lifecycleBoard = async () => jsonOrThrow(await API.request('/api/projects/lifecycle-board'));
+
+API.deleteUser = async (id) => jsonOrThrow(await API.request('/api/users/' + id, { method:'DELETE' }));
+API.exportFullBackup = () => downloadFile('/api/system/backup/all');
+API.importFullBackup = async (file) => {
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await fetch('/api/system/backup/import', { method:'POST', headers: authHeaders(), body: fd });
+  return jsonOrThrow(res);
+};
+
+API.nativeBackupCheck = async () => jsonOrThrow(await API.request('/api/system/backup/native/check'));
+API.exportNativeBackup = () => downloadFile('/api/system/backup/native/export');
+API.importNativeBackup = async (file) => {
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await fetch('/api/system/backup/native/import', { method:'POST', headers: authHeaders(), body: fd });
+  return jsonOrThrow(res);
+};

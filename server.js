@@ -4,6 +4,9 @@ const path = require('path');
 const crypto = require('crypto');
 const { Pool } = require('pg');
 const multer = require('multer');
+const { execFile } = require('child_process');
+const fs = require('fs');
+const os = require('os');
 const XLSX = require('xlsx');
 const PDFDocument = require('pdfkit');
 const jwt = require('jsonwebtoken');
@@ -326,6 +329,21 @@ function buildDateRangeConditions(field, query, conditions, values) {
 function requireNumericId(req,res,next){
   if(!/^\d+$/.test(String(req.params.id || ''))) return next('route');
   next();
+}
+
+
+function execFileAsync(cmd, args, opts = {}) {
+  return new Promise((resolve, reject) => {
+    execFile(cmd, args, { maxBuffer: 1024 * 1024 * 50, ...opts }, (error, stdout, stderr) => {
+      if (error) {
+        error.stdout = stdout;
+        error.stderr = stderr;
+        reject(error);
+      } else {
+        resolve({ stdout, stderr });
+      }
+    });
+  });
 }
 
 function authRequired(req,res,next){
@@ -1109,6 +1127,213 @@ app.get('/api/projects/lifecycle-board', authRequired, async (req, res) => {
   } catch (err) {
     console.error('lifecycle board error:', err);
     res.json({ rows: [], warning: 'lifecycle_board_failed' });
+  }
+});
+
+
+app.delete('/api/users/:id', authRequired, adminRequired, requireNumericId, async (req, res) => {
+  try {
+    const id = Number(req.params.id || 0);
+    if (!id) return res.status(400).json({ error: 'invalid_id' });
+    if (req.user && Number(req.user.id) === id) return res.status(400).json({ error: 'cannot_delete_self' });
+    const row = (await pool.query(`DELETE FROM users WHERE id=$1 RETURNING id`, [id])).rows[0];
+    if (!row) return res.status(404).json({ error: 'not_found' });
+    res.json({ ok: true, id });
+  } catch (err) {
+    console.error('delete user error:', err);
+    res.status(500).json({ error: 'delete_user_failed', detail: err.message });
+  }
+});
+
+app.get('/api/system/backup/all', authRequired, adminRequired, async (req, res) => {
+  try {
+    const tables = {
+      users: 'SELECT id, username, role, created_at, updated_at FROM users ORDER BY id',
+      clients: 'SELECT * FROM clients ORDER BY id',
+      suppliers: 'SELECT * FROM suppliers ORDER BY id',
+      equipment_categories: 'SELECT * FROM equipment_categories ORDER BY id',
+      equipment: 'SELECT * FROM equipment ORDER BY id',
+      quotes: 'SELECT * FROM quotes ORDER BY id',
+      quote_items: 'SELECT * FROM quote_items ORDER BY id',
+      contracts: 'SELECT * FROM contracts ORDER BY id',
+      acceptances: 'SELECT * FROM acceptances ORDER BY id',
+      purchases: 'SELECT * FROM purchases ORDER BY id',
+      purchase_items: 'SELECT * FROM purchase_items ORDER BY id'
+    };
+    const data = {};
+    for (const [name, sql] of Object.entries(tables)) {
+      data[name] = (await pool.query(sql)).rows;
+    }
+    const payload = {
+      app: 'yt_weak_current',
+      version: 'V3.14.3',
+      exported_at: new Date().toISOString(),
+      tables: data
+    };
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="yt_weak_current_backup_all.json"');
+    res.end(JSON.stringify(payload, null, 2));
+  } catch (err) {
+    console.error('backup export error:', err);
+    res.status(500).json({ error: 'backup_export_failed', detail: err.message });
+  }
+});
+
+app.post('/api/system/backup/import', authRequired, adminRequired, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'file_required' });
+    const raw = req.file.buffer.toString('utf-8');
+    let payload;
+    try {
+      payload = JSON.parse(raw);
+    } catch (e) {
+      return res.status(400).json({ error: 'invalid_json_file' });
+    }
+    const tables = payload?.tables || {};
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const order = [
+        'purchase_items',
+        'quote_items',
+        'purchases',
+        'acceptances',
+        'contracts',
+        'quotes',
+        'equipment',
+        'equipment_categories',
+        'suppliers',
+        'clients',
+        'users'
+      ];
+      for (const t of order) {
+        if (Object.prototype.hasOwnProperty.call(tables, t)) {
+          await client.query(`DELETE FROM ${t}`);
+        }
+      }
+
+      const insertRows = async (table, rows) => {
+        if (!Array.isArray(rows) || !rows.length) return;
+        const cols = Object.keys(rows[0]);
+        const placeholders = rows.map((row, rIdx) => {
+          const ps = cols.map((_, cIdx) => `$${rIdx * cols.length + cIdx + 1}`);
+          return `(${ps.join(',')})`;
+        }).join(',');
+        const values = [];
+        rows.forEach(row => cols.forEach(c => values.push(row[c])));
+        await client.query(`INSERT INTO ${table} (${cols.join(',')}) VALUES ${placeholders}`, values);
+      };
+
+      const restoreOrder = [
+        'users',
+        'clients',
+        'suppliers',
+        'equipment_categories',
+        'equipment',
+        'quotes',
+        'contracts',
+        'acceptances',
+        'purchases',
+        'quote_items',
+        'purchase_items'
+      ];
+      for (const t of restoreOrder) {
+        if (Object.prototype.hasOwnProperty.call(tables, t)) {
+          await insertRows(t, tables[t]);
+        }
+      }
+
+      const sequenceMap = {
+        users: 'users_id_seq',
+        clients: 'clients_id_seq',
+        suppliers: 'suppliers_id_seq',
+        equipment_categories: 'equipment_categories_id_seq',
+        equipment: 'equipment_id_seq',
+        quotes: 'quotes_id_seq',
+        quote_items: 'quote_items_id_seq',
+        contracts: 'contracts_id_seq',
+        acceptances: 'acceptances_id_seq',
+        purchases: 'purchases_id_seq',
+        purchase_items: 'purchase_items_id_seq'
+      };
+      for (const [table, seq] of Object.entries(sequenceMap)) {
+        if (Object.prototype.hasOwnProperty.call(tables, table)) {
+          await client.query(`SELECT setval('${seq}', COALESCE((SELECT MAX(id) FROM ${table}), 1), true)`);
+        }
+      }
+
+      await client.query('COMMIT');
+      res.json({ ok: true, message: 'backup_import_success' });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('backup import error:', err);
+    res.status(500).json({ error: 'backup_import_failed', detail: err.message });
+  }
+});
+
+
+app.get('/api/system/backup/native/check', authRequired, adminRequired, async (req, res) => {
+  try {
+    let dumpOk = false, restoreOk = false, version = '';
+    try {
+      const r1 = await execFileAsync('pg_dump', ['--version']);
+      dumpOk = true;
+      version = String(r1.stdout || r1.stderr || '').trim();
+    } catch (e) {}
+    try {
+      await execFileAsync('psql', ['--version']);
+      restoreOk = true;
+    } catch (e) {}
+    res.json({ pg_dump: dumpOk, psql: restoreOk, version });
+  } catch (err) {
+    res.json({ pg_dump: false, psql: false, version: '', warning: 'native_backup_check_failed' });
+  }
+});
+
+app.get('/api/system/backup/native/export', authRequired, adminRequired, async (req, res) => {
+  try {
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) return res.status(500).json({ error: 'missing_database_url' });
+    const tempFile = path.join(os.tmpdir(), `yt_native_backup_${Date.now()}.sql`);
+    try {
+      await execFileAsync('pg_dump', ['--no-owner', '--no-privileges', '--clean', '--if-exists', '--dbname=' + dbUrl, '--file=' + tempFile]);
+    } catch (e) {
+      return res.status(500).json({ error: 'pg_dump_unavailable', detail: e.stderr || e.message });
+    }
+    res.download(tempFile, 'yt_weak_current_native_backup.sql', (err) => {
+      try { fs.unlinkSync(tempFile); } catch (e) {}
+      if (err) console.error('native export download error:', err);
+    });
+  } catch (err) {
+    console.error('native backup export error:', err);
+    res.status(500).json({ error: 'native_backup_export_failed', detail: err.message });
+  }
+});
+
+app.post('/api/system/backup/native/import', authRequired, adminRequired, upload.single('file'), async (req, res) => {
+  try {
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) return res.status(500).json({ error: 'missing_database_url' });
+    if (!req.file) return res.status(400).json({ error: 'file_required' });
+    const tempFile = path.join(os.tmpdir(), `yt_native_restore_${Date.now()}.sql`);
+    fs.writeFileSync(tempFile, req.file.buffer);
+    try {
+      await execFileAsync('psql', [dbUrl, '-f', tempFile]);
+    } catch (e) {
+      try { fs.unlinkSync(tempFile); } catch (x) {}
+      return res.status(500).json({ error: 'psql_unavailable_or_restore_failed', detail: e.stderr || e.message });
+    }
+    try { fs.unlinkSync(tempFile); } catch (e) {}
+    res.json({ ok: true, message: 'native_backup_import_success' });
+  } catch (err) {
+    console.error('native backup import error:', err);
+    res.status(500).json({ error: 'native_backup_import_failed', detail: err.message });
   }
 });
 
