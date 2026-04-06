@@ -675,6 +675,20 @@ app.get('/api/analysis/:type', authRequired, async (req,res) => {
 
 
 
+
+app.get('/api/clients/:id/history', authRequired, async (req,res) => {
+  const id = toInt(req.params.id, 0);
+  if(!id) return res.status(400).json({ error:'invalid_id' });
+  const rows = [];
+  const q = await pool.query(`SELECT '報價單' AS doc_type, quote_no AS doc_no, quote_date AS doc_date, total AS total_amount FROM quotes WHERE client_id=$1`, [id]);
+  const c = await pool.query(`SELECT '維護合約單' AS doc_type, doc_no, doc_date, amount AS total_amount FROM contracts WHERE client_id=$1`, [id]);
+  const a = await pool.query(`SELECT '驗收單' AS doc_type, doc_no, doc_date, 0 AS total_amount FROM acceptances WHERE client_id=$1`, [id]);
+  rows.push(...q.rows, ...c.rows, ...a.rows);
+  rows.sort((x,y)=>String(y.doc_date||'').localeCompare(String(x.doc_date||'')));
+  const total_amount = rows.reduce((s,r)=>s + Number(r.total_amount||0), 0);
+  res.json({ count: rows.length, total_amount, rows });
+});
+
 app.get('/api/export/clients', authRequired, async (req,res) => {
   const rows = (await pool.query(`SELECT client_name AS "客戶名稱", tax_id AS "統一編號", contact_person AS "聯絡人", phone AS "電話", address AS "地址", job_title AS "職位" FROM clients ORDER BY id DESC`)).rows;
   sendExcel(res, 'clients.xlsx', rows, 'clients');

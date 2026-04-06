@@ -50,3 +50,92 @@
 .list-item{background:#fff;border:1px solid #dbe4f0;border-radius:16px;padding:14px;margin-bottom:10px}
 .info-box{background:#ecfeff;color:#155e75;border:1px solid #a5f3fc;padding:10px 12px;border-radius:12px}
 @media (max-width:980px){.kpi-grid{grid-template-columns:1fr}}
+
+/* V3.9.2d 列印清潔修正版 */
+@media print{
+  /* 完整隱藏系統外層標題與使用者列 */
+  .topbar, .page-header, .page-title, .page-subtitle, .breadcrumb,
+  .form-topbar, .form-brand, .top-user, .user-info,
+  .sidebar, .nav, aside, header, nav, .no-print{
+    display:none !important;
+  }
+
+  html, body{
+    margin:0 !important;
+    padding:0 !important;
+    background:#fff !important;
+  }
+
+  *{
+    box-shadow:none !important;
+    text-shadow:none !important;
+  }
+
+  #app, .main, .form-wrap, .form-grid{
+    margin:0 !important;
+    padding:0 !important;
+    width:100% !important;
+    max-width:none !important;
+    background:#fff !important;
+    display:block !important;
+  }
+
+  .form-preview{
+    margin:0 !important;
+    padding:10mm 12mm !important;
+    border:none !important;
+    border-radius:0 !important;
+    background:#fff !important;
+    box-shadow:none !important;
+    width:100% !important;
+    min-height:auto !important;
+  }
+
+  /* 報價單區塊標題取消藍色凸顯感 */
+  .block h3{
+    background:none !important;
+    border:none !important;
+    border-left:none !important;
+    padding:0 !important;
+    margin:0 0 6px 0 !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+    color:#111827 !important;
+    font-size:15px !important;
+    font-weight:700 !important;
+  }
+
+  .doc-head, .quote-table, .block, .sign-grid, .sign-box{
+    box-shadow:none !important;
+    border-radius:0 !important;
+  }
+
+  .footer-note{
+    display:none !important;
+  }
+
+  @page{
+    size:A4 portrait;
+    margin:10mm;
+  }
+}
+
+/* V3.10 query full */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:#fff;border:1px solid #dbe4f0;border-radius:18px;padding:16px;box-shadow:0 8px 20px rgba(15,23,42,.05)}
+.kpi h3{margin:0 0 6px;font-size:13px;color:#6b7280}
+.kpi .big{font-size:24px;font-weight:800;color:#0f172a}
+.month-group{margin-bottom:18px}
+.month-title{background:#eff6ff;border-left:5px solid #2563eb;padding:10px 12px;border-radius:10px;font-weight:800;margin-bottom:10px}
+.list-item{background:#fff;border:1px solid #dbe4f0;border-radius:16px;padding:14px;margin-bottom:10px}
+.view-switch{display:inline-flex;gap:8px}
+.result-table{width:100%;border-collapse:collapse;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #dbe4f0}
+.result-table th,.result-table td{padding:10px 8px;border-bottom:1px solid #e5e7eb;font-size:14px;text-align:left;vertical-align:top}
+.result-table th{background:#f8fafc;font-weight:800}
+.result-table tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:4px 10px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px}
+.quick-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.quick-filters button{padding:8px 12px}
+.small-note{font-size:12px;color:#6b7280}
+.history-list{display:grid;gap:10px}
+@media (max-width: 980px){.kpi-grid{grid-template-columns:1fr 1fr}.result-table{display:block;overflow:auto}}

@@ -241,3 +241,14 @@ API.searchEquipment = async (params={}) => jsonOrThrow(await API.request('/api/e
 API.equipmentSummary = async () => jsonOrThrow(await API.request('/api/equipment/summary'));
 
 API.nextNo = async (type) => jsonOrThrow(await API.request('/api/serials/next?type='+encodeURIComponent(type)));
+
+function monthRange(offset = 0){
+  const d = new Date();
+  d.setMonth(d.getMonth() + offset, 1);
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const first = `${y}-${m}-01`;
+  const lastDate = new Date(y, d.getMonth()+1, 0).getDate();
+  const last = `${y}-${m}-${String(lastDate).padStart(2,'0')}`;
+  return { first, last };
+}

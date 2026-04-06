@@ -2,7 +2,7 @@
 document.getElementById('app').innerHTML = shell('資料建立 / 進貨單 / 查詢', `<div class="form-wrap">
   <div class="form-topbar">
     <div class="form-brand">
-      <h1>昱拓弱電有限公司｜V3.9.1 查詢頁整合修正版</h1>
+      <h1>昱拓弱電有限公司｜V3.10 查詢完整版</h1>
       <p>資料建立 / 進貨單 / 查詢</p>
     </div>
     <div class="form-actions no-print" id="topActions"></div>
@@ -13,11 +13,19 @@ document.getElementById('app').innerHTML = shell('資料建立 / 進貨單 / 查
   </div>
 </div>`);
 
-let rows=[], suppliers=[];
+let rows=[], suppliers=[], viewMode='cards';
 function money(v){ return Number(v||0).toLocaleString('zh-TW'); }
-function groupByMonth(arr){ const g={}; arr.forEach(r=>{const d=((r.purchase_date||'').replace(/\//g,'-').slice(0,7))||'未分類'; (g[d]||(g[d]=[])).push(r);}); return g; }
+function monthKey(v){ return ((v||'').replace(/\//g,'-').slice(0,7)) || '未分類'; }
+function groupByMonth(arr){ const g={}; arr.forEach(r=>{const k=monthKey(r.purchase_date); (g[k]||(g[k]=[])).push(r);}); return g; }
 function filters(){ return { keyword:keyword.value, date_from:date_from.value, date_to:date_to.value, supplier_id:supplier_id.value, payment_status:payment_status.value, payment_method:payment_method.value, total_min:total_min.value, total_max:total_max.value }; }
-async function loadSummary(){ const s=await API.purchaseSummary(); const o=await API.purchaseOverdue(); summary.innerHTML=`
+function setView(mode){ viewMode=mode; render(); }
+function setQuick(mode){
+  if(mode==='month'){ const r=monthRange(0); date_from.value=r.first; date_to.value=r.last; }
+  if(mode==='unpaid'){ payment_status.value='未付款'; }
+  if(mode==='partial'){ payment_status.value='部分付款'; }
+  loadData();
+}
+async function loadSummary(){ const s=await API.purchaseSummary(); const o=await API.purchaseOverdue(); document.getElementById('summary').innerHTML=`
 <div class="kpi"><h3>本月進貨單數</h3><div class="big">${s.month_count||0}</div></div>
 <div class="kpi"><h3>本月進貨總額</h3><div class="big">NT$ ${money(s.month_total||0)}</div></div>
 <div class="kpi"><h3>已付款總額</h3><div class="big">NT$ ${money(s.paid_total||0)}</div></div>
@@ -25,24 +33,32 @@ async function loadSummary(){ const s=await API.purchaseSummary(); const o=await
 <div class="kpi"><h3>未付款筆數</h3><div class="big">${s.unpaid_count||0}</div></div>
 <div class="kpi"><h3>逾期未付款</h3><div class="big">${(o.rows||[]).length}</div></div>`; }
 async function loadData(){ const data=await API.searchPurchases(filters()); rows=data.rows||[]; render(); }
-function render(){ const groups=groupByMonth(rows); preview.innerHTML=`<div class="kpi-grid" id="summary"></div>${rows.length?Object.keys(groups).sort().reverse().map(m=>`
-<div class="month-group"><div class="month-title">${m}｜${groups[m].length} 筆｜總額 NT$ ${money(groups[m].reduce((s,r)=>s+Number(r.total_amount||0),0))}</div>
-${groups[m].map(r=>`<div class="list-item"><strong>${r.purchase_no||'未編號'}｜${r.supplier_name||'未指定供應商'}</strong><div>日期：${r.purchase_date||'—'}　案場：${r.site_name||'—'}　對應報價：${r.quote_no||'—'}</div><div>總額：NT$ ${money(r.total_amount||0)}　已付：NT$ ${money(r.paid_amount||0)}　未付：NT$ ${money(r.remaining_amount||0)}　狀態：${r.payment_status||'—'}</div><div class="toolbar"><a class="btn" href="/purchase.html?id=${r.id}">修改</a><button class="light" onclick="downloadFile('/api/purchases/${r.id}/pdf')">PDF</button><button class="light" onclick="lineSharePdf('purchases',${r.id})">LINE</button></div></div>`).join('')}</div>`).join(''):'<div class="muted">尚無資料</div>'}`;
-loadSummary();
+function tableHtml(data){
+  return `<table class="result-table"><thead><tr><th>單號</th><th>日期</th><th>供應商</th><th>案場</th><th>總額</th><th>已付</th><th>未付</th><th>付款狀態</th><th>操作</th></tr></thead>
+  <tbody>${data.map(r=>`<tr><td>${r.purchase_no||''}</td><td>${r.purchase_date||''}</td><td>${r.supplier_name||''}</td><td>${r.site_name||''}</td><td>NT$ ${money(r.total_amount||0)}</td><td>NT$ ${money(r.paid_amount||0)}</td><td>NT$ ${money(r.remaining_amount||0)}</td><td><span class="badge">${r.payment_status||''}</span></td><td><div class="toolbar"><a class="btn" href="/purchase.html?id=${r.id}">修改</a><button class="light" onclick="downloadFile('/api/purchases/${r.id}/pdf')">PDF</button></div></td></tr>`).join('')}</tbody></table>`;
+}
+function cardsHtml(groups){
+  return Object.keys(groups).sort().reverse().map(m=>`<div class="month-group"><div class="month-title">${m}｜${groups[m].length} 筆｜總額 NT$ ${money(groups[m].reduce((s,r)=>s+Number(r.total_amount||0),0))}</div>${groups[m].map(r=>`<div class="list-item"><strong>${r.purchase_no||'未編號'}｜${r.supplier_name||'未指定供應商'}</strong><div>日期：${r.purchase_date||'—'}　案場：${r.site_name||'—'}　對應報價：${r.quote_no||'—'}</div><div>總額：NT$ ${money(r.total_amount||0)}　已付：NT$ ${money(r.paid_amount||0)}　未付：NT$ ${money(r.remaining_amount||0)}</div><div>付款狀態：<span class="badge">${r.payment_status||'—'}</span>　付款方式：${r.payment_method||'—'}</div><div class="toolbar"><a class="btn" href="/purchase.html?id=${r.id}">修改</a><button class="light" onclick="downloadFile('/api/purchases/${r.id}/pdf')">PDF</button><button class="light" onclick="lineSharePdf('purchases',${r.id})">LINE</button></div></div>`).join('')}</div>`).join('');
+}
+function render(){
+  const groups=groupByMonth(rows);
+  preview.innerHTML=`<div class="kpi-grid" id="summary"></div><div class="quick-filters"><button onclick="setQuick('month')">本月進貨</button><button onclick="setQuick('unpaid')">未付款</button><button onclick="setQuick('partial')">部分付款</button><span class="view-switch"><button class="${viewMode==='cards'?'':'light'}" onclick="setView('cards')">卡片模式</button><button class="${viewMode==='table'?'':'light'}" onclick="setView('table')">表格模式</button></span></div>${rows.length ? (viewMode==='cards' ? cardsHtml(groups) : tableHtml(rows)) : '<div class="small-note">查無資料</div>'}`;
+  loadSummary();
 }
 function resetFilters(){ ['keyword','date_from','date_to','supplier_id','payment_status','payment_method','total_min','total_max'].forEach(id=>window[id].value=''); loadData(); }
 (async()=>{
   suppliers=await API.getSuppliers();
-  topActions.innerHTML=`<button onclick="loadData()">查詢</button><button class="light" onclick="resetFilters()">重設</button>`;
+  topActions.innerHTML=`<button onclick="loadData()">查詢</button><button class="light" onclick="resetFilters()">重設</button><button class="light" onclick="downloadFile('/api/export/purchases')">匯出主檔</button><button class="light" onclick="downloadFile('/api/export/purchase-items')">匯出明細</button>`;
   leftPanel.innerHTML=`
-    <div class="form-section-title">查詢條件</div>
+    <div class="form-section-title">快速搜尋</div>
     <label>關鍵字</label><input id="keyword" placeholder="單號 / 供應商 / 案場 / 報價單">
+    <div class="form-section-title">進階查詢</div>
     <div class="form-row"><div><label>起始日期</label><input id="date_from" type="date"></div><div><label>結束日期</label><input id="date_to" type="date"></div></div>
     <label>供應商</label><select id="supplier_id"><option value="">全部供應商</option>${suppliers.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}</select>
     <div class="form-row"><div><label>付款狀態</label><select id="payment_status"><option value="">全部</option><option value="未付款">未付款</option><option value="部分付款">部分付款</option><option value="已付款">已付款</option></select></div><div><label>付款方式</label><select id="payment_method"><option value="">全部</option><option value="現金">現金</option><option value="轉帳">轉帳</option><option value="月結">月結</option><option value="貨到付款">貨到付款</option><option value="其他">其他</option></select></div></div>
     <div class="form-row"><div><label>最低金額</label><input id="total_min" type="number"></div><div><label>最高金額</label><input id="total_max" type="number"></div></div>
-    <div class="hint">保留本月統計、未付款統計與逾期提醒，畫面統一成 V3.9 表單模板風格。</div>`;
-  preview.innerHTML='<div class="kpi-grid" id="summary"></div><div class="muted">載入中…</div>';
+    <div class="hint">V3.10 進貨查詢支援：本月 / 未付款快速查詢、卡片 / 表格切換、主檔 / 明細匯出。</div>`;
+  preview.innerHTML='<div class="kpi-grid" id="summary"></div><div class="small-note">載入中…</div>';
   await loadData();
 })();
 

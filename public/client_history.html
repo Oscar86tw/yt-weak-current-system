@@ -1,0 +1,42 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>客戶歷史查詢｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/css/forms-template.css"></head><body><div id="app"></div><script src="/js/common.js"></script><script>
+document.getElementById('app').innerHTML = shell('客戶資料 / 客戶歷史查詢', `<div class="form-wrap">
+  <div class="form-topbar">
+    <div class="form-brand">
+      <h1>昱拓弱電有限公司｜V3.10 查詢完整版</h1>
+      <p>客戶資料 / 客戶歷史查詢</p>
+    </div>
+    <div class="form-actions no-print" id="topActions"></div>
+  </div>
+  <div class="form-grid">
+    <div class="form-panel" id="leftPanel"></div>
+    <div class="form-preview" id="preview"></div>
+  </div>
+</div>`);
+
+let clients=[], rows=[];
+function money(v){ return Number(v||0).toLocaleString('zh-TW'); }
+async function loadHistory(){
+  const cid = client_id.value;
+  if(!cid){ preview.innerHTML='<div class="small-note">請先選擇客戶</div>'; return; }
+  const res = await API.request('/api/clients/'+cid+'/history');
+  const data = await jsonOrThrow(res);
+  rows = data.rows || [];
+  const total = data.total_amount || 0;
+  const cnt = data.count || 0;
+  preview.innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi"><h3>歷史單據數</h3><div class="big">${cnt}</div></div>
+      <div class="kpi"><h3>歷史總金額</h3><div class="big">NT$ ${money(total)}</div></div>
+    </div>
+    <div class="history-list">
+      ${rows.map(r=>`<div class="list-item"><strong>${r.doc_type}｜${r.doc_no||''}</strong><div>日期：${r.doc_date||''}　金額：NT$ ${money(r.total_amount||0)}</div></div>`).join('') || '<div class="small-note">此客戶尚無歷史資料</div>'}
+    </div>`;
+}
+(async()=>{
+  clients=await API.getClients();
+  topActions.innerHTML=`<button onclick="loadHistory()">查詢歷史</button>`;
+  leftPanel.innerHTML=`<div class="form-section-title">客戶歷史查詢</div><label>客戶</label><select id="client_id"><option value="">請選擇客戶</option>${clients.map(c=>`<option value="${c.id}">${c.client_name}</option>`).join('')}</select><div class="hint">可查看客戶歷史報價、合約、驗收與金額統計。</div>`;
+  preview.innerHTML='<div class="small-note">請先選擇客戶</div>';
+})();
+
+</script></body></html>

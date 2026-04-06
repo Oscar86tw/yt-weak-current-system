@@ -2,7 +2,7 @@
 document.getElementById('app').innerHTML = shell('資料建立 / 設備 / 查詢', `<div class="form-wrap">
   <div class="form-topbar">
     <div class="form-brand">
-      <h1>昱拓弱電有限公司｜V3.9.1 查詢頁整合修正版</h1>
+      <h1>昱拓弱電有限公司｜V3.10 查詢完整版</h1>
       <p>資料建立 / 設備 / 查詢</p>
     </div>
     <div class="form-actions no-print" id="topActions"></div>
@@ -13,37 +13,37 @@ document.getElementById('app').innerHTML = shell('資料建立 / 設備 / 查詢
   </div>
 </div>`);
 
-let rows=[], cats=[];
+let rows=[], cats=[], viewMode='cards';
 function money(v){ return Number(v||0).toLocaleString('zh-TW'); }
-function groupByMonth(arr){ const g={}; arr.forEach(r=>{const d=((r.created_at||'').slice(0,7))||'未分類'; (g[d]||(g[d]=[])).push(r);}); return g; }
+function groupByMonth(arr){ const g={}; arr.forEach(r=>{const k=((String(r.created_at||'').slice(0,7))||'未分類'); (g[k]||(g[k]=[])).push(r);}); return g; }
 function filters(){ return { keyword:keyword.value, category:category.value, date_from:date_from.value, date_to:date_to.value, cost_min:cost_min.value, cost_max:cost_max.value, price_min:price_min.value, price_max:price_max.value, profit_min:profit_min.value, profit_max:profit_max.value }; }
-async function loadSummary(){ const s=await API.equipmentSummary(); summary.innerHTML=`
+function setView(mode){ viewMode=mode; render(); }
+function setQuick(mode){ if(mode==='month'){ const r=monthRange(0); date_from.value=r.first; date_to.value=r.last; } if(mode==='profit'){ profit_min.value='1000'; } loadData(); }
+async function loadSummary(){ const s=await API.equipmentSummary(); document.getElementById('summary').innerHTML=`
 <div class="kpi"><h3>設備總數</h3><div class="big">${s.total_count||0}</div></div>
-<div class="kpi"><h3>本月新增設備數</h3><div class="big">${s.new_this_month||0}</div></div>
+<div class="kpi"><h3>本月新增</h3><div class="big">${s.new_this_month||0}</div></div>
 <div class="kpi"><h3>平均售價</h3><div class="big">NT$ ${money(s.avg_price||0)}</div></div>
 <div class="kpi"><h3>平均利潤</h3><div class="big">NT$ ${money(s.avg_profit||0)}</div></div>
 <div class="kpi"><h3>高利潤設備數</h3><div class="big">${s.high_profit_count||0}</div></div>`; }
 async function loadData(){ const data=await API.searchEquipment(filters()); rows=data.rows||[]; render(); }
-function render(){ const groups=groupByMonth(rows); preview.innerHTML=`<div class="kpi-grid" id="summary"></div>${rows.length?Object.keys(groups).sort().reverse().map(m=>`
-<div class="month-group"><div class="month-title">${m}｜${groups[m].length} 筆</div>
-${groups[m].map(r=>`<div class="list-item"><strong>${r.code||'未編號'}｜${r.name||'未命名設備'}</strong><div>類別：${r.category||'—'}　規格：${r.spec||'—'}</div><div>成本：NT$ ${money(r.cost||0)}　售價：NT$ ${money(r.price||0)}　利潤：NT$ ${money(r.profit||0)}</div><div class="toolbar"><a class="btn" href="/equipment.html?id=${r.id}">修改</a></div></div>`).join('')}
-</div>`).join(''):'<div class="muted">尚無資料</div>'}`;
-loadSummary();
-}
+function tableHtml(data){ return `<table class="result-table"><thead><tr><th>編號</th><th>類別</th><th>名稱</th><th>規格</th><th>成本</th><th>售價</th><th>利潤</th><th>操作</th></tr></thead><tbody>${data.map(r=>`<tr><td>${r.code||''}</td><td>${r.category||''}</td><td>${r.name||''}</td><td>${r.spec||''}</td><td>NT$ ${money(r.cost||0)}</td><td>NT$ ${money(r.price||0)}</td><td>NT$ ${money(r.profit||0)}</td><td><a class="btn" href="/equipment.html?id=${r.id}">修改</a></td></tr>`).join('')}</tbody></table>`; }
+function cardsHtml(groups){ return Object.keys(groups).sort().reverse().map(m=>`<div class="month-group"><div class="month-title">${m}｜${groups[m].length} 筆</div>${groups[m].map(r=>`<div class="list-item"><strong>${r.code||'未編號'}｜${r.name||'未命名設備'}</strong><div>類別：${r.category||'—'}　規格：${r.spec||'—'}</div><div>成本：NT$ ${money(r.cost||0)}　售價：NT$ ${money(r.price||0)}　利潤：NT$ ${money(r.profit||0)}</div><div class="toolbar"><a class="btn" href="/equipment.html?id=${r.id}">修改</a></div></div>`).join('')}</div>`).join('');}
+function render(){ const groups=groupByMonth(rows); preview.innerHTML=`<div class="kpi-grid" id="summary"></div><div class="quick-filters"><button onclick="setQuick('month')">本月新增</button><button onclick="setQuick('profit')">高利潤設備</button><span class="view-switch"><button class="${viewMode==='cards'?'':'light'}" onclick="setView('cards')">卡片模式</button><button class="${viewMode==='table'?'':'light'}" onclick="setView('table')">表格模式</button></span></div>${rows.length ? (viewMode==='cards' ? cardsHtml(groups) : tableHtml(rows)) : '<div class="small-note">查無資料</div>'}`; loadSummary(); }
 function resetFilters(){ ['keyword','category','date_from','date_to','cost_min','cost_max','price_min','price_max','profit_min','profit_max'].forEach(id=>window[id].value=''); loadData(); }
 (async()=>{
   cats=await API.getEquipmentCategories();
   topActions.innerHTML=`<button onclick="loadData()">查詢</button><button class="light" onclick="resetFilters()">重設</button><button class="light" onclick="downloadFile('/api/export/equipment')">匯出 Excel</button>`;
   leftPanel.innerHTML=`
-    <div class="form-section-title">查詢條件</div>
+    <div class="form-section-title">快速搜尋</div>
     <label>關鍵字</label><input id="keyword" placeholder="編號 / 類別 / 名稱 / 規格">
+    <div class="form-section-title">進階查詢</div>
     <label>類別</label><select id="category"><option value="">全部類別</option>${cats.map(c=>`<option value="${c.name}">${c.name}</option>`).join('')}</select>
     <div class="form-row"><div><label>起始日期</label><input id="date_from" type="date"></div><div><label>結束日期</label><input id="date_to" type="date"></div></div>
     <div class="form-row"><div><label>最低成本</label><input id="cost_min" type="number"></div><div><label>最高成本</label><input id="cost_max" type="number"></div></div>
     <div class="form-row"><div><label>最低售價</label><input id="price_min" type="number"></div><div><label>最高售價</label><input id="price_max" type="number"></div></div>
     <div class="form-row"><div><label>最低利潤</label><input id="profit_min" type="number"></div><div><label>最高利潤</label><input id="profit_max" type="number"></div></div>
-    <div class="hint">設備查詢頁也整合成同一套穩定模板，便於後續再接分析頁。</div>`;
-  preview.innerHTML='<div class="kpi-grid" id="summary"></div><div class="muted">載入中…</div>';
+    <div class="hint">V3.10 設備查詢支援：高利潤快速篩選、卡片 / 表格切換、統計摘要。</div>`;
+  preview.innerHTML='<div class="kpi-grid" id="summary"></div><div class="small-note">載入中…</div>';
   await loadData();
 })();
 

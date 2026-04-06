@@ -2,7 +2,7 @@
 document.getElementById('app').innerHTML = shell('資料建立 / 報價單 / 查詢', `<div class="form-wrap">
   <div class="form-topbar">
     <div class="form-brand">
-      <h1>昱拓弱電有限公司｜V3.9.1 查詢頁整合修正版</h1>
+      <h1>昱拓弱電有限公司｜V3.10 查詢完整版</h1>
       <p>資料建立 / 報價單 / 查詢</p>
     </div>
     <div class="form-actions no-print" id="topActions"></div>
@@ -13,22 +13,53 @@ document.getElementById('app').innerHTML = shell('資料建立 / 報價單 / 查
   </div>
 </div>`);
 
-let rows=[], clients=[];
+let rows=[], clients=[], viewMode='cards';
 function money(v){ return Number(v||0).toLocaleString('zh-TW'); }
-function groupByMonth(arr){ const g={}; arr.forEach(r=>{const d=((r.quote_date||'').replace(/\//g,'-').slice(0,7))||'未分類'; (g[d]||(g[d]=[])).push(r);}); return g; }
+function monthKey(v){ return ((v||'').replace(/\//g,'-').slice(0,7)) || '未分類'; }
+function groupByMonth(arr){ const g={}; arr.forEach(r=>{const k=monthKey(r.quote_date); (g[k]||(g[k]=[])).push(r);}); return g; }
 function filters(){ return { keyword:keyword.value, date_from:date_from.value, date_to:date_to.value, client_id:client_id.value, sign_status:sign_status.value, progress:progress.value, total_min:total_min.value, total_max:total_max.value }; }
+function setView(mode){ viewMode=mode; render(); }
+function setQuick(mode){
+  if(mode==='today'){ const d=new Date().toISOString().slice(0,10); date_from.value=d; date_to.value=d; }
+  if(mode==='month'){ const r=monthRange(0); date_from.value=r.first; date_to.value=r.last; }
+  if(mode==='pending'){ sign_status.value=''; progress.value='待安排'; }
+  if(mode==='approved'){ sign_status.value='同意施作'; progress.value=''; }
+  loadData();
+}
 async function loadData(){ const data=await API.searchQuotes(filters()); rows=data.rows||[]; render(); }
-async function loadSummary(){ const s=await API.quoteSummary(); summary.innerHTML=`
-<div class="kpi"><h3>今日報價單數</h3><div class="big">${s.today_count||0}</div></div>
-<div class="kpi"><h3>本月報價單數</h3><div class="big">${s.month_count||0}</div></div>
-<div class="kpi"><h3>本月總金額</h3><div class="big">NT$ ${money(s.month_total||0)}</div></div>
-<div class="kpi"><h3>同意施作金額</h3><div class="big">NT$ ${money(s.approved_total||0)}</div></div>
-<div class="kpi"><h3>尚未簽核數</h3><div class="big">${s.unsigned_count||0}</div></div>
-<div class="kpi"><h3>待安排數</h3><div class="big">${s.pending_count||0}</div></div>`; }
-async function saveTrack(id){ await API.updateQuoteTracking(id,{sign_status:document.getElementById('sign_'+id).value, progress:document.getElementById('prog_'+id).value}); await loadData(); await loadSummary(); }
-function render(){
-  const groups=groupByMonth(rows);
-  preview.innerHTML = `<div class="kpi-grid" id="summary"></div>` + (rows.length ? Object.keys(groups).sort().reverse().map(m=>`
+async function loadSummary(){
+  const s=await API.quoteSummary();
+  document.getElementById('summary').innerHTML=`
+  <div class="kpi"><h3>今日報價單數</h3><div class="big">${s.today_count||0}</div></div>
+  <div class="kpi"><h3>本月報價單數</h3><div class="big">${s.month_count||0}</div></div>
+  <div class="kpi"><h3>本月總金額</h3><div class="big">NT$ ${money(s.month_total||0)}</div></div>
+  <div class="kpi"><h3>同意施作金額</h3><div class="big">NT$ ${money(s.approved_total||0)}</div></div>
+  <div class="kpi"><h3>尚未簽核數</h3><div class="big">${s.unsigned_count||0}</div></div>
+  <div class="kpi"><h3>待安排數</h3><div class="big">${s.pending_count||0}</div></div>`;
+}
+async function saveTrack(id){
+  try{
+    await API.updateQuoteTracking(id,{sign_status:document.getElementById('sign_'+id).value, progress:document.getElementById('prog_'+id).value});
+    await loadData();
+    alert('報價單追蹤已更新');
+  }catch(err){ alert('更新失敗：'+err.message); }
+}
+function tableHtml(data){
+  return `<table class="result-table">
+    <thead><tr><th>單號</th><th>日期</th><th>客戶</th><th>工程名稱</th><th>合計</th><th>簽核</th><th>進度</th><th>操作</th></tr></thead>
+    <tbody>${data.map(r=>`<tr>
+      <td>${r.quote_no||''}</td>
+      <td>${r.quote_date||''}</td>
+      <td>${r.client_name||''}</td>
+      <td>${r.project_name||''}</td>
+      <td>NT$ ${money(r.total||0)}</td>
+      <td><select id="sign_${r.id}"><option value="尚未簽核" ${r.sign_status==='尚未簽核'?'selected':''}>尚未簽核</option><option value="同意施作" ${r.sign_status==='同意施作'?'selected':''}>同意施作</option><option value="先換待核" ${r.sign_status==='先換待核'?'selected':''}>先換待核</option></select></td>
+      <td><select id="prog_${r.id}"><option value="待安排" ${r.progress==='待安排'?'selected':''}>待安排</option><option value="進行中" ${r.progress==='進行中'?'selected':''}>進行中</option><option value="已完成" ${r.progress==='已完成'?'selected':''}>已完成</option></select></td>
+      <td><div class="toolbar"><button onclick="saveTrack(${r.id})">更新</button><a class="btn" href="/quote.html?id=${r.id}">修改</a><button class="light" onclick="downloadFile('/api/quotes/${r.id}/pdf')">PDF</button></div></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+function cardsHtml(groups){
+  return Object.keys(groups).sort().reverse().map(m=>`
     <div class="month-group">
       <div class="month-title">${m}｜${groups[m].length} 筆｜總額 NT$ ${money(groups[m].reduce((s,r)=>s+Number(r.total||0),0))}</div>
       ${groups[m].map(r=>`
@@ -41,22 +72,38 @@ function render(){
           </div>
           <div class="toolbar"><button onclick="saveTrack(${r.id})">更新追蹤</button><a class="btn" href="/quote.html?id=${r.id}">修改</a><button class="light" onclick="downloadFile('/api/quotes/${r.id}/pdf')">PDF</button><button class="light" onclick="lineSharePdf('quotes',${r.id})">LINE</button></div>
         </div>`).join('')}
-    </div>`).join('') : '<div class="muted">尚無資料</div>');
+    </div>`).join('');
+}
+function render(){
+  const groups=groupByMonth(rows);
+  preview.innerHTML = `<div class="kpi-grid" id="summary"></div>
+    <div class="quick-filters">
+      <button onclick="setQuick('today')">今日報價</button>
+      <button onclick="setQuick('month')">本月報價</button>
+      <button onclick="setQuick('pending')">未完成案件</button>
+      <button onclick="setQuick('approved')">已成交案件</button>
+      <span class="view-switch">
+        <button class="${viewMode==='cards'?'':'light'}" onclick="setView('cards')">卡片模式</button>
+        <button class="${viewMode==='table'?'':'light'}" onclick="setView('table')">表格模式</button>
+      </span>
+    </div>
+    ${rows.length ? (viewMode==='cards' ? cardsHtml(groups) : tableHtml(rows)) : '<div class="small-note">查無資料</div>'}`;
   loadSummary();
 }
 function resetFilters(){ ['keyword','date_from','date_to','client_id','sign_status','progress','total_min','total_max'].forEach(id=>window[id].value=''); loadData(); }
 (async()=>{
   clients=await API.getClients();
-  topActions.innerHTML=`<button onclick="loadData()">查詢</button><button class="light" onclick="resetFilters()">重設</button><button class="light" onclick="downloadFile('/api/export/quotes')">匯出 Excel</button>`;
+  topActions.innerHTML=`<button onclick="loadData()">查詢</button><button class="light" onclick="resetFilters()">重設</button><button class="light" onclick="downloadFile('/api/export/quotes')">匯出主檔</button><button class="light" onclick="downloadFile('/api/export/quote-items')">匯出明細</button>`;
   leftPanel.innerHTML=`
-    <div class="form-section-title">查詢條件</div>
-    <label>關鍵字</label><input id="keyword" placeholder="單號 / 客戶 / 工程名稱">
+    <div class="form-section-title">快速搜尋</div>
+    <label>關鍵字</label><input id="keyword" placeholder="單號 / 客戶 / 工程名稱 / 聯絡資訊">
+    <div class="form-section-title">進階查詢</div>
     <div class="form-row"><div><label>起始日期</label><input id="date_from" type="date"></div><div><label>結束日期</label><input id="date_to" type="date"></div></div>
     <label>客戶</label><select id="client_id"><option value="">全部客戶</option>${clients.map(c=>`<option value="${c.id}">${c.client_name}</option>`).join('')}</select>
     <div class="form-row"><div><label>簽核狀況</label><select id="sign_status"><option value="">全部</option><option value="尚未簽核">尚未簽核</option><option value="同意施作">同意施作</option><option value="先換待核">先換待核</option></select></div><div><label>進度</label><select id="progress"><option value="">全部</option><option value="待安排">待安排</option><option value="進行中">進行中</option><option value="已完成">已完成</option></select></div></div>
     <div class="form-row"><div><label>最低金額</label><input id="total_min" type="number"></div><div><label>最高金額</label><input id="total_max" type="number"></div></div>
-    <div class="hint">這版查詢頁改成與表單相同的穩定模板風格，保留狀態更新、PDF、LINE。</div>`;
-  preview.innerHTML='<div class="kpi-grid" id="summary"></div><div class="muted">載入中…</div>';
+    <div class="hint">V3.10 報價查詢支援：快速搜尋、多條件查詢、卡片 / 表格切換、即時更新簽核 / 進度、主檔 / 明細匯出。</div>`;
+  preview.innerHTML='<div class="kpi-grid" id="summary"></div><div class="small-note">載入中…</div>';
   await loadData();
 })();
 
