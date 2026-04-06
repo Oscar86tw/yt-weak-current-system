@@ -1,3 +1,118 @@
-<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>首頁｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"></head><body><div id="app"></div><script src="/js/common.js"></script><script>
-document.getElementById('app').innerHTML=shell('首頁 / 功能入口',`<section class="hero"><h2>V3.10 查詢完整版</h2><p>已修正選單展開與連結問題，所有第三層功能可正常顯示。</p></section><div class="cards"><div class="card"><h3>系統設定</h3><p>公司基本設定、帳戶管理、設備類別。</p><a class="btn" href="/settings.html">前往</a></div><div class="card"><h3>客戶資料</h3><p>客戶主檔建立與維護。</p><a class="btn" href="/clients.html">前往</a></div><div class="card"><h3>資料建立</h3><p>供應商、設備、進貨單、報價單、維護合約、驗收單。</p><a class="btn" href="/quote.html">前往</a></div></div>`);
+<!DOCTYPE html><html lang="zh-Hant"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>首頁儀表板｜昱拓弱電</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/forms-template.css">
+</head><body><div id="app"></div><script src="/js/common.js"></script><script>
+function money(v){ return Number(v||0).toLocaleString('zh-TW'); }
+function pct(value,total){ return total>0 ? Math.round((value/total)*100) : 0; }
+async function loadDashboard(){
+  const [quoteSummary, purchaseSummary, purchaseOverdue, equipmentSummary, recentQuotes, recentPurchases] = await Promise.all([
+    API.quoteSummary(),
+    API.purchaseSummary(),
+    API.purchaseOverdue(),
+    API.equipmentSummary(),
+    API.searchQuotes({}),
+    API.searchPurchases({})
+  ]);
+
+  const qRows = (recentQuotes.rows||[]).slice(0,5);
+  const pRows = (recentPurchases.rows||[]).slice(0,5);
+  const overdueRows = (purchaseOverdue.rows||[]).slice(0,5);
+
+  const signed = Number(quoteSummary.approved_total||0);
+  const monthTotal = Number(quoteSummary.month_total||0);
+  const unsignedCount = Number(quoteSummary.unsigned_count||0);
+  const pendingCount = Number(quoteSummary.pending_count||0);
+
+  const unpaid = Number(purchaseSummary.unpaid_total||0);
+  const paid = Number(purchaseSummary.paid_total||0);
+  const overdueCount = (purchaseOverdue.rows||[]).length;
+
+  const avgProfit = Number(equipmentSummary.avg_profit||0);
+  const avgPrice = Number(equipmentSummary.avg_price||0);
+  const highProfit = Number(equipmentSummary.high_profit_count||0);
+
+  const html = `
+    <section class="hero2">
+      <h2>首頁儀表板</h2>
+      <p>案件、進貨、設備與風險提醒整合在同一頁，方便每天先看重點再進入各模組。</p>
+    </section>
+
+    <section class="kpi-grid">
+      <div class="kpi"><h3>今日報價單</h3><div class="big">${quoteSummary.today_count||0}</div><div class="sub">今日建立筆數</div></div>
+      <div class="kpi"><h3>本月報價總額</h3><div class="big">NT$ ${money(monthTotal)}</div><div class="sub">本月報價總金額</div></div>
+      <div class="kpi"><h3>本月進貨總額</h3><div class="big">NT$ ${money(purchaseSummary.month_total||0)}</div><div class="sub">進貨支出金額</div></div>
+      <div class="kpi"><h3>逾期未付款</h3><div class="big">${overdueCount}</div><div class="sub">需要優先追蹤</div></div>
+    </section>
+
+    <section class="two-col">
+      <div class="panel">
+        <h3>快捷入口</h3>
+        <div class="toolbar2">
+          <a href="/quote.html">新增報價單</a>
+          <a href="/purchase.html">新增進貨單</a>
+          <a href="/quotes.html" class="light">查詢報價</a>
+          <a href="/purchases.html" class="light">查詢進貨</a>
+          <a href="/equipment_query.html" class="light">查詢設備</a>
+          <a href="/client_history.html" class="light">客戶歷史</a>
+        </div>
+        <div class="small-note">建議每天先看未完成案件與逾期未付款，再決定今天優先處理的單。</div>
+      </div>
+
+      <div class="panel">
+        <h3>案件狀態概況</h3>
+        <div class="bar-list">
+          <div class="bar-item"><div>已成交</div><div class="bar-track"><div class="bar-fill" style="width:${pct(signed, monthTotal)}%"></div></div><div>NT$ ${money(signed)}</div></div>
+          <div class="bar-item"><div>未簽核</div><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,unsignedCount*12)}%"></div></div><div>${unsignedCount} 筆</div></div>
+          <div class="bar-item"><div>待安排</div><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,pendingCount*12)}%"></div></div><div>${pendingCount} 筆</div></div>
+          <div class="bar-item"><div>未付款</div><div class="bar-track"><div class="bar-fill" style="width:${pct(unpaid, unpaid+paid)}%"></div></div><div>NT$ ${money(unpaid)}</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="two-col">
+      <div class="panel">
+        <h3>最近報價單</h3>
+        <div class="list">
+          ${qRows.length ? qRows.map(r=>`<div class="rowcard"><strong>${r.quote_no||'未編號'}｜${r.project_name||'未命名工程'}</strong><div class="rowmeta">日期：${r.quote_date||'—'}　客戶：${r.client_name||'—'}<br>合計：NT$ ${money(r.total||0)}　<span class="badge2">${r.sign_status||'尚未簽核'}</span>　<span class="badge2">${r.progress||'待安排'}</span></div></div>`).join('') : '<div class="small-note">目前沒有最近報價資料</div>'}
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>最近進貨單</h3>
+        <div class="list">
+          ${pRows.length ? pRows.map(r=>`<div class="rowcard"><strong>${r.purchase_no||'未編號'}｜${r.supplier_name||'未指定供應商'}</strong><div class="rowmeta">日期：${r.purchase_date||'—'}　案場：${r.site_name||'—'}<br>總額：NT$ ${money(r.total_amount||0)}　已付：NT$ ${money(r.paid_amount||0)}　未付：NT$ ${money(r.remaining_amount||0)}</div></div>`).join('') : '<div class="small-note">目前沒有最近進貨資料</div>'}
+        </div>
+      </div>
+    </section>
+
+    <section class="two-col">
+      <div class="panel">
+        <h3>逾期未付款提醒</h3>
+        <div class="list">
+          ${overdueRows.length ? overdueRows.map(r=>`<div class="rowcard"><strong>${r.purchase_no||'未編號'}｜${r.supplier_name||'未指定供應商'}</strong><div class="rowmeta">到期日：${r.due_date||'—'}　未付：NT$ ${money(r.remaining_amount||0)}<br>付款狀態：${r.payment_status||'未付款'}</div></div>`).join('') : '<div class="small-note">目前沒有逾期未付款資料</div>'}
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>設備獲利概況</h3>
+        <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
+          <div class="kpi"><h3>設備總數</h3><div class="big">${equipmentSummary.total_count||0}</div></div>
+          <div class="kpi"><h3>平均售價</h3><div class="big">NT$ ${money(avgPrice)}</div></div>
+          <div class="kpi"><h3>平均利潤</h3><div class="big">NT$ ${money(avgProfit)}</div></div>
+          <div class="kpi"><h3>本月新增</h3><div class="big">${equipmentSummary.new_this_month||0}</div></div>
+          <div class="kpi"><h3>高利潤設備</h3><div class="big">${highProfit}</div></div>
+          <div class="kpi"><h3>建議動作</h3><div class="big" style="font-size:18px">${highProfit>0?'優先推高利潤品':'補建高利潤設備'}</div></div>
+        </div>
+      </div>
+    </section>
+  `;
+  document.getElementById('dashboard').innerHTML = html;
+}
+
+document.getElementById('app').innerHTML = shell('首頁 / 儀表板', '<div id="dashboard" class="dashboard"><div class="small-note">載入中…</div></div>');
+loadDashboard().catch(err=>{
+  document.getElementById('dashboard').innerHTML = '<div class="panel"><h3>儀表板載入失敗</h3><div class="small-note">'+ err.message +'</div></div>';
+});
 </script></body></html>
