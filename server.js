@@ -43,6 +43,12 @@ async function nextDocNo(type){
     if(r.rows.length && r.rows[0].code) n = Number(String(r.rows[0].code).replace(/\D/g,'')) + 1;
     return String(n).padStart(4,'0');
   }
+  if(type === 'unit'){
+    const r = await pool.query(`SELECT code FROM units ORDER BY id DESC LIMIT 1`);
+    let n = 1;
+    if(r.rows.length && r.rows[0].code) n = Number(String(r.rows[0].code).replace(/\D/g,'')) + 1;
+    return String(n).padStart(4,'0');
+  }
   if(type === 'equipment'){
     const prefix = s.equipment_prefix || 'EQ';
     const r = await pool.query(`SELECT code FROM equipment WHERE code LIKE $1 ORDER BY id DESC LIMIT 1`, [`${prefix}%`]);
@@ -196,6 +202,13 @@ async function initDb(){
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS units (
+    id SERIAL PRIMARY KEY,
+    code TEXT,
+    name TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
   await pool.query(`CREATE TABLE IF NOT EXISTS purchase_items (
     id SERIAL PRIMARY KEY,
     purchase_id INTEGER REFERENCES purchases(id) ON DELETE CASCADE,
@@ -238,6 +251,7 @@ async function initDb(){
   await pool.query(`ALTER TABLE equipment_categories ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
   await pool.query(`ALTER TABLE equipment ADD COLUMN IF NOT EXISTS category TEXT`);
   await pool.query(`ALTER TABLE equipment ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
+  await pool.query(`ALTER TABLE units ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
   await pool.query(`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS sign_status TEXT DEFAULT '尚未簽核'`);
   await pool.query(`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS progress TEXT DEFAULT '待安排'`);
   await pool.query(`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
@@ -255,6 +269,7 @@ async function initDb(){
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_purchases_supplier_id ON purchases(supplier_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_purchases_payment_status ON purchases(payment_status)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_equipment_category ON equipment(category)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_units_code ON units(code)`);
 
   const admin = await pool.query(`SELECT id FROM users WHERE username=$1`, [ADMIN_USER]);
   if(!admin.rows.length){
@@ -416,6 +431,23 @@ app.put('/api/equipment-categories/:id', authRequired, adminRequired, requireNum
 });
 app.delete('/api/equipment-categories/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => {
   await pool.query(`DELETE FROM equipment_categories WHERE id=$1`, [req.params.id]);
+  res.json({ ok:true });
+});
+
+
+app.get('/api/units', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM units ORDER BY code ASC, id ASC`)).rows));
+app.post('/api/units', authRequired, adminRequired, async (req,res) => {
+  const d=req.body||{};
+  const r=await pool.query(`INSERT INTO units (code,name) VALUES ($1,$2) RETURNING *`, [d.code||'', d.name||'']);
+  res.json(r.rows[0]);
+});
+app.put('/api/units/:id', authRequired, adminRequired, requireNumericId, async (req,res) => {
+  const d=req.body||{};
+  const r=await pool.query(`UPDATE units SET code=$1,name=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$3 RETURNING *`, [d.code||'', d.name||'', req.params.id]);
+  res.json(r.rows[0]);
+});
+app.delete('/api/units/:id', authRequired, adminRequired, requireNumericId, async (req,res) => {
+  await pool.query(`DELETE FROM units WHERE id=$1`, [req.params.id]);
   res.json({ ok:true });
 });
 
@@ -1152,6 +1184,7 @@ app.get('/api/system/backup/all', authRequired, adminRequired, async (req, res) 
       clients: 'SELECT * FROM clients ORDER BY id',
       suppliers: 'SELECT * FROM suppliers ORDER BY id',
       equipment_categories: 'SELECT * FROM equipment_categories ORDER BY id',
+      units: 'SELECT * FROM units ORDER BY id',
       equipment: 'SELECT * FROM equipment ORDER BY id',
       quotes: 'SELECT * FROM quotes ORDER BY id',
       quote_items: 'SELECT * FROM quote_items ORDER BY id',
@@ -1202,6 +1235,7 @@ app.post('/api/system/backup/import', authRequired, adminRequired, upload.single
         'contracts',
         'quotes',
         'equipment',
+        'units',
         'equipment_categories',
         'suppliers',
         'clients',
@@ -1230,6 +1264,7 @@ app.post('/api/system/backup/import', authRequired, adminRequired, upload.single
         'clients',
         'suppliers',
         'equipment_categories',
+        'units',
         'equipment',
         'quotes',
         'contracts',
@@ -1249,6 +1284,7 @@ app.post('/api/system/backup/import', authRequired, adminRequired, upload.single
         clients: 'clients_id_seq',
         suppliers: 'suppliers_id_seq',
         equipment_categories: 'equipment_categories_id_seq',
+        units: 'units_id_seq',
         equipment: 'equipment_id_seq',
         quotes: 'quotes_id_seq',
         quote_items: 'quote_items_id_seq',

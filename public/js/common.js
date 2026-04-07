@@ -1,5 +1,7 @@
 
 const COMPANY={name:'昱拓弱電有限公司',tag:'弱電系統維修｜監控｜門禁｜對講｜車道停管｜BA中央監控',phone:'0960-770-512',address:'桃園市中壢區榮安一街490號13樓'};
+function authHeaders(){ const t = localStorage.getItem('yt_token')||''; return t ? { 'Authorization':'Bearer ' + t } : {}; }
+
 window.API={
  token(){return localStorage.getItem('yt_token')||'';},
  role(){return localStorage.getItem('yt_role')||'';},
@@ -84,7 +86,7 @@ function shell(title,content){
   <div id="menu-system" class="submenu hidden">
     <a class="btn ${active('settings.html')?'active':''}" href="/settings.html">公司基本設定</a>
     ${API.role()==='admin'?`<a class="btn ${active('users.html')?'active':''}" href="/users.html">帳戶管理</a>`:''}
-    <a class="btn ${active('equipment_categories.html')?'active':''}" href="/equipment_categories.html">設備類別</a><a class="btn ${active('data_io.html')?'active':''}" href="/data_io.html">資料匯入匯出</a>
+    <a class="btn ${active('equipment_categories.html')?'active':''}" href="/equipment_categories.html">設備類別</a><a class="btn ${active('units.html')?'active':''}" href="/units.html">單位設定</a><a class="btn ${active('data_io.html')?'active':''}" href="/data_io.html">資料匯入匯出</a>
   </div>
   <button class="btn parent" onclick="toggleMenu('menu-client')">客戶資料</button>
   <div id="menu-client" class="submenu hidden">
@@ -139,7 +141,23 @@ function shell(title,content){
 }
 document.addEventListener('DOMContentLoaded',autoOpenByPath);
 
-function downloadFile(url){ window.open(url, '_blank'); }
+async function downloadFile(url, filename=''){
+  const res = await API.request(url);
+  const ct = res.headers.get('content-type') || '';
+  if(ct.includes('application/json')){
+    const data = await res.json();
+    throw new Error(data?.detail || data?.error || '下載失敗');
+  }
+  const blob = await res.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const disp = res.headers.get('content-disposition') || '';
+  const m = disp.match(/filename="?([^"]+)"?/);
+  a.download = filename || (m ? m[1] : 'download');
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
 async function uploadExcel(endpoint, inputEl){
   if(!inputEl.files||!inputEl.files[0]){ alert('請先選擇 Excel 檔'); return; }
   const fd=new FormData();
@@ -283,3 +301,8 @@ API.importNativeBackup = async (file) => {
   const res = await fetch('/api/system/backup/native/import', { method:'POST', headers: authHeaders(), body: fd });
   return jsonOrThrow(res);
 };
+
+API.getUnits = async () => jsonOrThrow(await API.request('/api/units'));
+API.createUnit = async (p) => jsonOrThrow(await API.request('/api/units',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}));
+API.updateUnit = async (id,p) => jsonOrThrow(await API.request('/api/units/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}));
+API.deleteUnit = async (id) => jsonOrThrow(await API.request('/api/units/'+id,{method:'DELETE'}));

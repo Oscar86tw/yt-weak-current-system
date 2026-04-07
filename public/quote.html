@@ -37,8 +37,8 @@ function getEqOptions(category, selected=''){
 function getCatOptions(selected=''){
   return '<option value="">請選擇設備類別</option>' + categories.map(c => `<option value="${c.name}" ${selected===c.name?'selected':''}>${c.code||''}｜${c.name}</option>`).join('');
 }
-function addItem(){ state.items.push({ item_desc:'', equipment_id:'', spec:'', qty:1, unit_price:0 }); renderForm(); renderPreview(); }
-function removeItem(i){ state.items.splice(i,1); renderForm(); renderPreview(); }
+function addItem(){ preserveBaseValues(); state.items.push({ item_desc:'', equipment_id:'', spec:'', qty:1, unit_price:0 }); renderForm(); renderPreview(); }
+function removeItem(i){ preserveBaseValues(); state.items.splice(i,1); renderForm(); renderPreview(); }
 function itemTotal(it){ return Number(it.qty||0) * Number(it.unit_price||0); }
 function totals(){ const subtotal = state.items.reduce((s,it)=>s+itemTotal(it),0); const tax = Math.round(subtotal*0.05); return { subtotal, tax, total: subtotal+tax }; }
 
@@ -60,6 +60,19 @@ function collect(){
       qty: Number(it.qty||0),
       unit_price: Number(it.unit_price||0)
     }))
+  };
+}
+
+function preserveBaseValues(){
+  if(!document.getElementById('quote_no')) return;
+  window._formLoad = {
+    ...(window._formLoad||{}),
+    quote_no: document.getElementById('quote_no').value,
+    quote_date: document.getElementById('quote_date').value,
+    client_id: document.getElementById('client_id').value || null,
+    project_name: document.getElementById('project_name').value,
+    quote_desc: document.getElementById('quote_desc').value,
+    quote_terms: document.getElementById('quote_terms').value
   };
 }
 
@@ -90,7 +103,7 @@ function onCategoryChange(i, value){
   state.items[i].equipment_id = '';
   state.items[i].spec = '';
   state.items[i].unit_price = 0;
-  renderForm(); renderPreview();
+  preserveBaseValues(); renderForm(); renderPreview();
 }
 function onEqChange(i, value){
   state.items[i].equipment_id = value;
@@ -100,7 +113,7 @@ function onEqChange(i, value){
     state.items[i].spec = eq.name || '';
     state.items[i].unit_price = Number(eq.price||0);
   }
-  renderForm(); renderPreview();
+  preserveBaseValues(); renderForm(); renderPreview();
 }
 function renderForm(){
   topActions.innerHTML = `

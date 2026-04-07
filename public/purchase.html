@@ -14,26 +14,54 @@ document.getElementById('app').innerHTML = shell('資料建立 / 進貨單 / 新
 </div>`);
 
 const state = { id: qs('id') || '', items: [] };
-let suppliers = [], quotes = [], equipment = [];
+let suppliers = [], quotes = [], equipment = [], clients = [], units = [];
 function today(){ return new Date().toISOString().slice(0,10); }
 function money(v){ return Number(v||0).toLocaleString('zh-TW'); }
 function exportState(){ const blob=new Blob([JSON.stringify(collect(), null, 2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='purchase-form.json'; a.click(); }
 function importState(el){ const f=el.files&&el.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ fill(JSON.parse(r.result)); renderForm(); renderPreview();}; r.readAsText(f,'utf-8'); }
-function addItem(){ state.items.push({ equipment_id:'', item_name:'', spec:'', qty:1, unit:'式', unit_cost:0 }); renderForm(); renderPreview(); }
-function removeItem(i){ state.items.splice(i,1); renderForm(); renderPreview(); }
+function addItem(){ preserveBaseValues(); state.items.push({ equipment_id:'', item_name:'', spec:'', qty:1, unit:'式', unit_cost:0 }); renderForm(); renderPreview(); }
+function removeItem(i){ preserveBaseValues(); state.items.splice(i,1); renderForm(); renderPreview(); }
 function itemTotal(it){ return Number(it.qty||0)*Number(it.unit_cost||0); }
 function totals(){ const subtotal = state.items.reduce((s,it)=>s+itemTotal(it),0); const tax_amount = Number(tax_amount_input?.value || 0); const total = subtotal + tax_amount; const paid_amount = Number(paid_amount_input?.value || 0); return { subtotal, tax_amount, total, paid_amount, remaining: total - paid_amount }; }
 function eqOptions(selected=''){ return '<option value="">請選擇設備</option>' + equipment.map(e=>`<option value="${e.id}" ${String(selected)===String(e.id)?'selected':''}>${e.name}${e.spec?'｜'+e.spec:''}</option>`).join(''); }
-function onEqChange(i, v){ state.items[i].equipment_id=v; const e=equipment.find(x=>String(x.id)===String(v)); if(e){ state.items[i].item_name=e.name||''; state.items[i].spec=e.spec||''; state.items[i].unit_cost=Number(e.cost||0); } renderForm(); renderPreview(); }
+function onEqChange(i, v){ state.items[i].equipment_id=v; const e=equipment.find(x=>String(x.id)===String(v)); if(e){ state.items[i].item_name=e.name||''; state.items[i].spec=e.spec||''; state.items[i].unit_cost=Number(e.cost||0); } preserveBaseValues(); renderForm(); renderPreview(); }
+function preserveBaseValues(){
+  if(!document.getElementById('purchase_no')) return;
+  window._formLoad = {
+    ...(window._formLoad||{}),
+    purchase_no: purchase_no.value,
+    purchase_date: purchase_date.value,
+    supplier_id: supplier_id.value || null,
+    quote_id: quote_id.value || null,
+    client_id: client_id.value || state._client_id || null,
+    site_name: site_name.value || '',
+    memo: memo.value,
+    tax_amount: Number(tax_amount_input.value||0),
+    payment_status: payment_status.value,
+    payment_method: payment_method.value,
+    due_date: due_date.value,
+    paid_amount: Number(paid_amount_input.value||0),
+    paid_date: paid_date.value
+  };
+}
+function unitOptions(selected=''){ return '<option value="">請選擇單位</option>' + units.map(u=>`<option value="${u.name}" ${selected===u.name?'selected':''}>${u.code||''}｜${u.name}</option>`).join(''); }
+function onClientChange(v){
+  const c = clients.find(x=>String(x.id)===String(v));
+  state._client_id = v || '';
+  preserveBaseValues();
+  window._formLoad.client_id = v || '';
+  window._formLoad.site_name = c ? (c.client_name || '') : '';
+  renderForm(); renderPreview();
+}
 function collect(){ const t=totals(); return { purchase_no: purchase_no.value, purchase_date: purchase_date.value, supplier_id: supplier_id.value||null, quote_id: quote_id.value||null, site_name: site_name.value, memo: memo.value, tax_amount: Number(tax_amount_input.value||0), payment_status: payment_status.value, payment_method: payment_method.value, due_date: due_date.value, paid_amount: Number(paid_amount_input.value||0), paid_date: paid_date.value, items: state.items.map((it,idx)=>({ item_order:idx+1, equipment_id:it.equipment_id||null, item_name:it.item_name||'', spec:it.spec||'', qty:Number(it.qty||0), unit:it.unit||'', unit_cost:Number(it.unit_cost||0) })) }; }
-function fill(d){ state.id=d.id||state.id||''; state.items=(d.items||[]).map(it=>({ equipment_id:it.equipment_id||'', item_name:it.item_name||'', spec:it.spec||'', qty:it.qty||1, unit:it.unit||'式', unit_cost:it.unit_cost||0 })); if(!state.items.length) state.items=[{ equipment_id:'', item_name:'', spec:'', qty:1, unit:'式', unit_cost:0 }]; window._formLoad=d; }
-function bindBase(){ const d=window._formLoad||{}; purchase_no.value=d.purchase_no||''; purchase_date.value=d.purchase_date||today(); supplier_id.value=d.supplier_id?String(d.supplier_id):''; quote_id.value=d.quote_id?String(d.quote_id):''; site_name.value=d.site_name||''; memo.value=d.memo||''; tax_amount_input.value=d.tax_amount||0; payment_status.value=d.payment_status||'未付款'; payment_method.value=d.payment_method||'現金'; due_date.value=d.due_date||''; paid_amount_input.value=d.paid_amount||0; paid_date.value=d.paid_date||''; }
+function fill(d){ state.id=d.id||state.id||''; state.items=(d.items||[]).map(it=>({ equipment_id:it.equipment_id||'', item_name:it.item_name||'', spec:it.spec||'', qty:it.qty||1, unit:it.unit||'式', unit_cost:it.unit_cost||0 })); if(!state.items.length) state.items=[{ equipment_id:'', item_name:'', spec:'', qty:1, unit:'式', unit_cost:0 }]; state._client_id = d.client_id || ''; window._formLoad=d; }
+function bindBase(){ const d=window._formLoad||{}; purchase_no.value=d.purchase_no||''; purchase_date.value=d.purchase_date||today(); supplier_id.value=d.supplier_id?String(d.supplier_id):''; quote_id.value=d.quote_id?String(d.quote_id):''; client_id.value=(d.client_id || state._client_id) ? String(d.client_id || state._client_id) : ''; site_name.value=d.site_name||''; memo.value=d.memo||''; tax_amount_input.value=d.tax_amount||0; payment_status.value=d.payment_status||'未付款'; payment_method.value=d.payment_method||'現金'; due_date.value=d.due_date||''; paid_amount_input.value=d.paid_amount||0; paid_date.value=d.paid_date||''; }
 function renderForm(){ topActions.innerHTML=`<button onclick="saveDoc()">儲存到系統</button><button class="secondary" onclick="window.print()">列印 / 另存 PDF</button><button class="light" onclick="exportState()">匯出資料</button><label class="light" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">匯入資料<input type="file" accept=".json" style="display:none" onchange="importState(this)"></label><button class="light" onclick="clearForm()">清空</button>`;
 leftPanel.innerHTML=`
 <div class="form-section-title">基本資料</div>
 <label>進貨單號</label><input id="purchase_no">
 <div class="form-row"><div><label>日期</label><input id="purchase_date" type="date"></div><div><label>供應商</label><select id="supplier_id"><option value="">請選擇供應商</option>${suppliers.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}</select></div></div>
-<div class="form-row"><div><label>對應報價單</label><select id="quote_id"><option value="">可不選</option>${quotes.map(q=>`<option value="${q.id}">${q.quote_no || ''}｜${q.project_name || ''}</option>`).join('')}</select></div><div><label>案場</label><input id="site_name"></div></div>
+<div class="form-row"><div><label>對應報價單</label><select id="quote_id"><option value="">可不選</option>${quotes.map(q=>`<option value="${q.id}">${q.quote_no || ''}｜${q.project_name || ''}</option>`).join('')}</select></div><div><label>案場</label><select id="client_id" onchange="onClientChange(this.value)"><option value="">請選擇客戶</option>${clients.map(c=>`<option value="${c.id}">${c.client_name}</option>`).join('')}</select><input id="site_name" readonly style="margin-top:8px"></div></div>
 <label>進貨備註</label><textarea id="memo"></textarea>
 <div class="form-section-title">進貨項目</div><div id="itemsBox"></div><button type="button" onclick="addItem()">＋ 新增項目</button>
 <div class="form-row-3"><div><label>稅額</label><input id="tax_amount_input" type="number"></div><div><label>付款狀態</label><select id="payment_status"><option value="未付款">未付款</option><option value="部分付款">部分付款</option><option value="已付款">已付款</option></select></div><div><label>付款方式</label><select id="payment_method"><option value="現金">現金</option><option value="轉帳">轉帳</option><option value="月結">月結</option><option value="貨到付款">貨到付款</option><option value="其他">其他</option></select></div></div>
@@ -46,7 +74,7 @@ box.innerHTML = state.items.map((it,i)=>`
   <div class="item-card">
     <label>設備</label><select onchange="onEqChange(${i},this.value)">${eqOptions(it.equipment_id)}</select>
     <div class="form-row"><div><label>名稱</label><input value="${it.item_name}" oninput="state.items[${i}].item_name=this.value; renderPreview()"></div><div><label>規格</label><input value="${it.spec}" oninput="state.items[${i}].spec=this.value; renderPreview()"></div></div>
-    <div class="form-row-3"><div><label>數量</label><input type="number" value="${it.qty}" oninput="state.items[${i}].qty=this.value; renderPreview()"></div><div><label>單位</label><input value="${it.unit}" oninput="state.items[${i}].unit=this.value; renderPreview()"></div><div><label>單價</label><input type="number" value="${it.unit_cost}" oninput="state.items[${i}].unit_cost=this.value; renderPreview()"></div></div>
+    <div class="form-row-3"><div><label>數量</label><input type="number" value="${it.qty}" oninput="state.items[${i}].qty=this.value; renderPreview()"></div><div><label>單位</label><select onchange="state.items[${i}].unit=this.value; renderPreview()">${unitOptions(it.unit)}</select></div><div><label>單價</label><input type="number" value="${it.unit_cost}" oninput="state.items[${i}].unit_cost=this.value; renderPreview()"></div></div>
     <div class="muted">小計：NT$ ${money(itemTotal(it))}</div><div style="margin-top:8px"><button type="button" class="light" onclick="removeItem(${i})">刪除項目</button></div>
   </div>`).join('');
 ['purchase_no','purchase_date','supplier_id','quote_id','site_name','memo','tax_amount_input','payment_status','payment_method','due_date','paid_amount_input','paid_date'].forEach(id=>{ window[id].addEventListener('input', renderPreview); window[id].addEventListener('change', renderPreview);});
@@ -61,9 +89,9 @@ ${d.items.map((it,idx)=>`<tr><td>${idx+1}</td><td>${it.item_name||''}</td><td>${
 </tbody></table>
 <p style="text-align:right;line-height:1.9;">小計：NT$ ${money(t.subtotal)}<br>稅額：NT$ ${money(t.tax_amount)}<br><strong>總額：NT$ ${money(t.total)}</strong><br>已付：NT$ ${money(t.paid_amount)}<br>未付：NT$ ${money(t.remaining)}</p></div>
 <div class="block"><h3>付款資訊</h3><p>付款狀態：${d.payment_status}<br>付款方式：${d.payment_method}<br>到期日：${d.due_date||'—'}<br>付款日期：${d.paid_date||'—'}</p></div>
-<div class="sign-grid"><div class="sign-box">承辦簽章：</div><div class="sign-box">主管簽章：</div></div><div class="footer-note">昱拓弱電有限公司｜列印版文件</div>`; }
+<div class="footer-note">昱拓弱電有限公司｜列印版文件</div>`; }
 async function saveDoc(){ const d=collect(); if(!d.supplier_id) return alert('請選擇供應商'); let r; if(state.id) r=await API.updatePurchase(state.id,d); else r=await API.createPurchase(d); if(r.id && !state.id){ location.href='/purchase.html?id='+r.id; return; } alert('進貨單已存檔'); }
 function clearForm(){ window._formLoad={}; state.id=''; state.items=[{ equipment_id:'', item_name:'', spec:'', qty:1, unit:'式', unit_cost:0 }]; renderForm(); renderPreview(); }
-(async()=>{ suppliers=await API.getSuppliers(); quotes=await API.listQuotes(); equipment=await API.listEquipment(); const next=await API.nextNo('purchase'); window._formLoad={purchase_no:next.doc_no,purchase_date:today(),payment_status:'未付款',payment_method:'現金',items:[{ equipment_id:'', item_name:'', spec:'', qty:1, unit:'式', unit_cost:0 }]}; if(state.id){ const d=await API.getPurchase(state.id); fill({...d,id:state.id}); } else { state.items=[{ equipment_id:'', item_name:'', spec:'', qty:1, unit:'式', unit_cost:0 }]; } renderForm(); renderPreview(); })().catch(err=>{ alert('載入進貨單失敗：' + err.message); });
+(async()=>{ suppliers=await API.getSuppliers(); quotes=await API.listQuotes(); equipment=await API.listEquipment(); clients=await API.getClients(); units=await API.getUnits(); const next=await API.nextNo('purchase'); window._formLoad={purchase_no:next.doc_no,purchase_date:today(),payment_status:'未付款',payment_method:'現金',items:[{ equipment_id:'', item_name:'', spec:'', qty:1, unit:'式', unit_cost:0 }]}; if(state.id){ const d=await API.getPurchase(state.id); fill({...d,id:state.id}); } else { state.items=[{ equipment_id:'', item_name:'', spec:'', qty:1, unit:'式', unit_cost:0 }]; } renderForm(); renderPreview(); })().catch(err=>{ alert('載入進貨單失敗：' + err.message); });
 
 </script></body></html>
