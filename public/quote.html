@@ -34,7 +34,7 @@ function getEqOptions(category, selected=''){
   const list = equipment.filter(e => !category || e.category === category);
   return '<option value="">請選擇設備名稱</option>' + list.map(e => `<option value="${e.id}" ${String(selected)===String(e.id)?'selected':''}>${e.name}${e.spec ? '｜'+e.spec : ''}</option>`).join('');
 }
-function unitOptions(selected=''){ return '<option value="">請選擇單位</option>' + units.map(u=>`<option value="${u.name}" ${selected===u.name?'selected':''}>${u.code||''}｜${u.name}</option>`).join(''); }
+function unitOptions(selected=''){ return '<option value="">請選擇單位</option>' + units.map(u=>`<option value="${u.name}" ${selected===u.name?'selected':''}>${u.name}</option>`).join(''); }
 function getCatOptions(selected=''){
   return '<option value="">請選擇設備類別</option>' + categories.map(c => `<option value="${c.name}" ${selected===c.name?'selected':''}>${c.code||''}｜${c.name}</option>`).join('');
 }
