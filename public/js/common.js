@@ -143,17 +143,21 @@ document.addEventListener('DOMContentLoaded',autoOpenByPath);
 
 async function downloadFile(url, filename=''){
   const res = await API.request(url);
-  const ct = res.headers.get('content-type') || '';
-  if(ct.includes('application/json')){
-    const data = await res.json();
-    throw new Error(data?.detail || data?.error || '下載失敗');
-  }
   const blob = await res.blob();
+  if ((res.headers.get('content-type') || '').includes('application/json')) {
+    const text = await blob.text();
+    try {
+      const data = JSON.parse(text);
+      throw new Error(data?.detail || data?.error || '下載失敗');
+    } catch (e) {
+      throw new Error(text || '下載失敗');
+    }
+  }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   const disp = res.headers.get('content-disposition') || '';
-  const m = disp.match(/filename="?([^"]+)"?/);
-  a.download = filename || (m ? m[1] : 'download');
+  const m = disp.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i) || disp.match(/filename="?([^"]+)"?/i);
+  a.download = filename || (m ? decodeURIComponent(m[1]) : 'download');
   document.body.appendChild(a);
   a.click();
   setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);

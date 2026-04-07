@@ -14,7 +14,7 @@ document.getElementById('app').innerHTML = shell('資料建立 / 報價單 / 新
 </div>`);
 
 const state = { id: qs('id') || '', items: [] };
-let clients = [], categories = [], equipment = [];
+let clients = [], categories = [], equipment = [], units = [];
 
 function money(v){ return Number(v||0).toLocaleString('zh-TW'); }
 function today(){ return new Date().toISOString().slice(0,10); }
@@ -34,10 +34,11 @@ function getEqOptions(category, selected=''){
   const list = equipment.filter(e => !category || e.category === category);
   return '<option value="">請選擇設備名稱</option>' + list.map(e => `<option value="${e.id}" ${String(selected)===String(e.id)?'selected':''}>${e.name}${e.spec ? '｜'+e.spec : ''}</option>`).join('');
 }
+function unitOptions(selected=''){ return '<option value="">請選擇單位</option>' + units.map(u=>`<option value="${u.name}" ${selected===u.name?'selected':''}>${u.code||''}｜${u.name}</option>`).join(''); }
 function getCatOptions(selected=''){
   return '<option value="">請選擇設備類別</option>' + categories.map(c => `<option value="${c.name}" ${selected===c.name?'selected':''}>${c.code||''}｜${c.name}</option>`).join('');
 }
-function addItem(){ preserveBaseValues(); state.items.push({ item_desc:'', equipment_id:'', spec:'', qty:1, unit_price:0 }); renderForm(); renderPreview(); }
+function addItem(){ preserveBaseValues(); state.items.push({ item_desc:'', equipment_id:'', spec:'', qty:1, unit:'', unit_price:0 }); renderForm(); renderPreview(); }
 function removeItem(i){ preserveBaseValues(); state.items.splice(i,1); renderForm(); renderPreview(); }
 function itemTotal(it){ return Number(it.qty||0) * Number(it.unit_price||0); }
 function totals(){ const subtotal = state.items.reduce((s,it)=>s+itemTotal(it),0); const tax = Math.round(subtotal*0.05); return { subtotal, tax, total: subtotal+tax }; }
@@ -58,6 +59,7 @@ function collect(){
       equipment_id: it.equipment_id || null,
       spec: it.spec || '',
       qty: Number(it.qty||0),
+      unit: it.unit || '',
       unit_price: Number(it.unit_price||0)
     }))
   };
@@ -83,9 +85,10 @@ function fill(data){
     equipment_id: it.equipment_id || '',
     spec: it.spec || '',
     qty: it.qty || 1,
+    unit: it.unit || '',
     unit_price: it.unit_price || 0
   }));
-  if(!state.items.length) state.items = [{ item_desc:'', equipment_id:'', spec:'', qty:1, unit_price:0 }];
+  if(!state.items.length) state.items = [{ item_desc:'', equipment_id:'', spec:'', qty:1, unit:'', unit_price:0 }];
   window._formLoad = data;
 }
 
@@ -145,8 +148,9 @@ function renderForm(){
         <div><label>估價事項</label><select onchange="onCategoryChange(${i}, this.value)">${getCatOptions(it.item_desc)}</select></div>
         <div><label>規格 / 設備名稱</label><select onchange="onEqChange(${i}, this.value)">${getEqOptions(it.item_desc, it.equipment_id)}</select></div>
       </div>
-      <div class="form-row">
+      <div class="form-row-3">
         <div><label>數量</label><input type="number" value="${it.qty}" oninput="state.items[${i}].qty=this.value; renderPreview()"></div>
+        <div><label>單位</label><select onchange="state.items[${i}].unit=this.value; renderPreview()">${unitOptions(it.unit)}</select></div>
         <div><label>單價</label><input type="number" value="${it.unit_price}" oninput="state.items[${i}].unit_price=this.value; renderPreview()"></div>
       </div>
       <div class="muted">設備名稱：${it.spec || '—'}　小計：NT$ ${money(itemTotal(it))}</div>
@@ -205,18 +209,19 @@ async function saveDoc(){
   if(newId && !state.id){ location.href = '/quote.html?id=' + newId; return; }
   alert('報價單已存檔');
 }
-function clearForm(){ window._formLoad = {}; state.id=''; state.items=[{ item_desc:'', equipment_id:'', spec:'', qty:1, unit_price:0 }]; renderForm(); renderPreview(); }
+function clearForm(){ window._formLoad = {}; state.id=''; state.items=[{ item_desc:'', equipment_id:'', spec:'', qty:1, unit:'', unit_price:0 }]; renderForm(); renderPreview(); }
 (async()=>{
   clients = await API.getClients();
   categories = await API.getEquipmentCategories();
   equipment = await API.listEquipment();
+  units = await API.getUnits();
   const next = await API.nextNo('quote');
-  window._formLoad = { quote_no: next.doc_no, quote_date: today(), items:[{ item_desc:'', equipment_id:'', spec:'', qty:1, unit_price:0 }] };
+  window._formLoad = { quote_no: next.doc_no, quote_date: today(), items:[{ item_desc:'', equipment_id:'', spec:'', qty:1, unit:'', unit_price:0 }] };
   if(state.id){
     const data = await API.getQuote(state.id);
     fill({ ...data, id: state.id, items: data.items || [] });
   } else {
-    state.items=[{ item_desc:'', equipment_id:'', spec:'', qty:1, unit_price:0 }];
+    state.items=[{ item_desc:'', equipment_id:'', spec:'', qty:1, unit:'', unit_price:0 }];
   }
   renderForm(); renderPreview();
 })().catch(err=>{ alert('載入報價單失敗：' + err.message); });

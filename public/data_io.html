@@ -24,7 +24,7 @@ document.getElementById('app').innerHTML = shell('系統設定 / 資料匯入匯
   <h3>完整資料庫備份</h3>
   <p>將整個系統主要資料表匯出為 JSON 備份檔，或將備份檔完整匯回資料庫。</p>
   <div class="toolbar">
-    <button onclick="API.exportFullBackup()">完整資料備份匯出</button>
+    <button onclick="exportFull()">完整資料備份匯出</button>
     <input type="file" id="full_backup_file" accept=".json">
     <button class="light" onclick="importFullBackup()">匯入完整備份</button>
   </div>
@@ -65,5 +65,13 @@ async function importNativeBackup(){
     await API.importNativeBackup(f);
     alert('原生 SQL 備份已匯入');
   }catch(err){ alert('原生 SQL 備份匯入失敗：' + err.message); }
+}
+
+async function exportFull(){
+  try{
+    await API.exportFullBackup();
+  }catch(err){
+    alert('完整資料備份匯出失敗：' + err.message);
+  }
 }
 </script></body></html>
