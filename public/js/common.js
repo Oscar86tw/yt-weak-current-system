@@ -38,6 +38,12 @@ window.API={
  async updateContract(id,p){return (await this.request('/api/contracts/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
  async deleteContract(id){return (await this.request('/api/contracts/'+id,{method:'DELETE'})).json();},
  async listAcceptances(){return (await this.request('/api/acceptances')).json();},
+ async listReceipts(){return (await this.request('/api/receipts')).json();},
+ async getReceipt(id){return (await this.request('/api/receipts/'+id)).json();},
+ async receiptSummary(quoteId){return (await this.request('/api/receipts-summary/'+quoteId)).json();},
+ async createReceipt(p){return (await this.request('/api/receipts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
+ async updateReceipt(id,p){return (await this.request('/api/receipts/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
+ async deleteReceipt(id){return (await this.request('/api/receipts/'+id,{method:'DELETE'})).json();},
  async getAcceptance(id){return (await this.request('/api/acceptances/'+id)).json();},
  async createAcceptance(p){return (await this.request('/api/acceptances',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
  async updateAcceptance(id,p){return (await this.request('/api/acceptances/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
@@ -74,6 +80,7 @@ function autoOpenByPath(){
     [['quote.html','quotes.html','quote_analysis.html','quote_tracking.html'],'menu-quote-3'],
     [['contracts.html','contracts_history.html','contract_analysis.html'],'menu-contract-3'],
     [['acceptance.html','acceptances_history.html','acceptance_analysis.html'],'menu-accept-3'],
+    [['receipt.html','receipts.html'],'menu-receipt-3'],
   ];
   groups.forEach(([pages,id])=>{if(pages.some(x=>p.endsWith(x))) document.getElementById(id)?.classList.remove('hidden');});
 }
@@ -135,6 +142,12 @@ function shell(title,content){
       <a class="btn ${active('acceptances_history.html')?'active':''}" href="/acceptances_history.html">查詢</a>
       <a class="btn ${active('acceptances_history.html')?'active':''}" href="/acceptances_history.html">清單列表</a>
       <a class="btn ${active('acceptance_analysis.html')?'active':''}" href="/acceptance_analysis.html">分析</a>
+    </div>
+    <button class="btn parent" onclick="toggleMenu('menu-receipt-3')">收據</button>
+    <div id="menu-receipt-3" class="submenu3 hidden">
+      <a class="btn ${active('receipt.html')?'active':''}" href="/receipt.html">新增</a>
+      <a class="btn ${active('receipts.html')?'active':''}" href="/receipts.html">查詢</a>
+      <a class="btn ${active('receipts.html')?'active':''}" href="/receipts.html">清單列表</a>
     </div>
   </div>
   </div><div style="margin-top:16px" class="info-box">已修正選單層級與顯示：第一層不再保留獨立查詢，第三層各模組均可展開並連到新增、查詢、清單列表、分析。</div></aside><main class="main">${content}</main></div></div>`;

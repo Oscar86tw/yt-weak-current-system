@@ -61,13 +61,15 @@ async function nextDocNo(type){
     quote: s.quote_prefix || 'YA',
     contract: s.contract_prefix || 'YB',
     acceptance: s.acceptance_prefix || 'YC',
-    purchase: s.purchase_prefix || 'PI'
+    purchase: s.purchase_prefix || 'PI',
+    receipt: 'YR'
   };
   const tableMap = {
     quote:{table:'quotes',col:'quote_no'},
     contract:{table:'contracts',col:'doc_no'},
     acceptance:{table:'acceptances',col:'doc_no'},
-    purchase:{table:'purchases',col:'purchase_no'}
+    purchase:{table:'purchases',col:'purchase_no'},
+    receipt:{table:'receipts',col:'receipt_no'}
   };
   const prefix = prefixMap[type] || 'YA';
   const target = tableMap[type] || tableMap.quote;
@@ -178,6 +180,25 @@ async function initDb(){
     doc_date TEXT,
     client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
     content TEXT,
+    note TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS receipts (
+    id SERIAL PRIMARY KEY,
+    receipt_no TEXT,
+    receipt_date TEXT,
+    quote_id INTEGER REFERENCES quotes(id) ON DELETE SET NULL,
+    client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+    quote_no TEXT,
+    project_name TEXT,
+    client_name TEXT,
+    receipt_type TEXT DEFAULT '部分收款',
+    payment_method TEXT DEFAULT '現金',
+    payment_status TEXT DEFAULT '已收訖',
+    amount_received INTEGER DEFAULT 0,
+    received_total_after INTEGER DEFAULT 0,
+    remaining_balance INTEGER DEFAULT 0,
     note TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -759,6 +780,20 @@ app.get('/api/payables', authRequired, async (req,res) => {
   res.json(r.rows);
 });
 
+
+app.post('/api/import/receipts', authRequired, adminRequired, upload.single('file'), async (req,res) => {
+  const rows = parseWorkbook(req.file.buffer); let imported=0;
+  for(const r of rows){
+    if(!r['收據編號']) continue;
+    await pool.query(`INSERT INTO receipts (receipt_no,receipt_date,quote_no,project_name,client_name,receipt_type,payment_method,payment_status,amount_received,received_total_after,remaining_balance,note) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, [
+      r['收據編號']||'', r['收據日期']||'', r['報價單號']||'', r['工程名稱']||'', r['客戶名稱']||'', r['收款類型']||'部分收款',
+      r['收款方式']||'現金', r['款項狀態']||'已收訖', Number(r['本次收款']||0), Number(r['累計已收']||0), Number(r['剩餘未收']||0), r['備註']||''
+    ]);
+    imported++;
+  }
+  res.json({ imported });
+});
+
 app.get('/api/analysis/:type', authRequired, async (req,res) => {
   const type = req.params.type;
   let query = '', totalField = undefined;
@@ -1191,7 +1226,8 @@ app.get('/api/system/backup/all', authRequired, adminRequired, async (req, res) 
       contracts: 'SELECT * FROM contracts ORDER BY id',
       acceptances: 'SELECT * FROM acceptances ORDER BY id',
       purchases: 'SELECT * FROM purchases ORDER BY id',
-      purchase_items: 'SELECT * FROM purchase_items ORDER BY id'
+      purchase_items: 'SELECT * FROM purchase_items ORDER BY id',
+      receipts: 'SELECT * FROM receipts ORDER BY id'
     };
     const data = {};
     for (const [name, sql] of Object.entries(tables)) {
@@ -1230,6 +1266,7 @@ app.post('/api/system/backup/import', authRequired, adminRequired, upload.single
       const order = [
         'purchase_items',
         'quote_items',
+        'receipts',
         'purchases',
         'acceptances',
         'contracts',
@@ -1270,6 +1307,7 @@ app.post('/api/system/backup/import', authRequired, adminRequired, upload.single
         'contracts',
         'acceptances',
         'purchases',
+        'receipts',
         'quote_items',
         'purchase_items'
       ];
@@ -1291,7 +1329,8 @@ app.post('/api/system/backup/import', authRequired, adminRequired, upload.single
         contracts: 'contracts_id_seq',
         acceptances: 'acceptances_id_seq',
         purchases: 'purchases_id_seq',
-        purchase_items: 'purchase_items_id_seq'
+        purchase_items: 'purchase_items_id_seq',
+        receipts: 'receipts_id_seq'
       };
       for (const [table, seq] of Object.entries(sequenceMap)) {
         if (Object.prototype.hasOwnProperty.call(tables, table)) {
@@ -1371,6 +1410,98 @@ app.post('/api/system/backup/native/import', authRequired, adminRequired, upload
     console.error('native backup import error:', err);
     res.status(500).json({ error: 'native_backup_import_failed', detail: err.message });
   }
+});
+
+
+app.get('/api/receipts', authRequired, async (req,res) => {
+  const r = await pool.query(`
+    SELECT rc.*, COALESCE(c.client_name, rc.client_name, '未指定客戶') AS client_name_display
+    FROM receipts rc
+    LEFT JOIN clients c ON c.id = rc.client_id
+    ORDER BY rc.id DESC
+  `);
+  res.json(r.rows);
+});
+
+app.get('/api/receipts/:id', authRequired, requireNumericId, async (req,res) => {
+  const r = await pool.query(`SELECT * FROM receipts WHERE id=$1`, [req.params.id]);
+  if(!r.rows.length) return res.status(404).json({ error:'not found' });
+  res.json(r.rows[0]);
+});
+
+app.get('/api/receipts-summary/:quote_id', authRequired, requireNumericId, async (req,res) => {
+  const q = await pool.query(`SELECT q.id,q.quote_no,q.quote_date,q.client_id,q.project_name,q.total,COALESCE(c.client_name,'') AS client_name FROM quotes q LEFT JOIN clients c ON c.id=q.client_id WHERE q.id=$1`, [req.params.quote_id]);
+  if(!q.rows.length) return res.status(404).json({ error:'quote_not_found' });
+  const s = await pool.query(`SELECT COALESCE(SUM(amount_received),0) AS received_total FROM receipts WHERE quote_id=$1`, [req.params.quote_id]);
+  const quote = q.rows[0];
+  const received = Number(s.rows[0].received_total || 0);
+  const total = Number(quote.total || 0);
+  res.json({
+    quote_id: quote.id,
+    quote_no: quote.quote_no || '',
+    quote_date: quote.quote_date || '',
+    client_id: quote.client_id || null,
+    client_name: quote.client_name || '',
+    project_name: quote.project_name || '',
+    quote_total: total,
+    received_total: received,
+    remaining_balance: Math.max(total - received, 0)
+  });
+});
+
+async function saveReceipt(id, body){
+  const amount = Number(body.amount_received || 0);
+  const summary = body.quote_id ? await pool.query(`SELECT COALESCE(SUM(amount_received),0) AS received_total FROM receipts WHERE quote_id=$1 ${id ? 'AND id<>$2' : ''}`, [body.quote_id].concat(id ? [id] : [])) : { rows:[{received_total:0}] };
+  let quoteInfo = { quote_no: body.quote_no || '', project_name: body.project_name || '', client_id: body.client_id || null, client_name: body.client_name || '', quote_total: Number(body.quote_total||0) };
+  if(body.quote_id){
+    const q = await pool.query(`SELECT q.quote_no,q.project_name,q.client_id,q.total,COALESCE(c.client_name,'') AS client_name FROM quotes q LEFT JOIN clients c ON c.id=q.client_id WHERE q.id=$1`, [body.quote_id]);
+    if(q.rows.length) quoteInfo = { ...quoteInfo, ...q.rows[0], quote_total: Number(q.rows[0].total||0) };
+  }
+  const receivedTotalAfter = Number(summary.rows[0].received_total || 0) + amount;
+  const remainingBalance = Math.max(Number(quoteInfo.quote_total || 0) - receivedTotalAfter, 0);
+  const vals = [
+    body.receipt_no || '',
+    body.receipt_date || '',
+    body.quote_id || null,
+    quoteInfo.client_id || null,
+    quoteInfo.quote_no || '',
+    quoteInfo.project_name || '',
+    quoteInfo.client_name || '',
+    body.receipt_type || '部分收款',
+    body.payment_method || '現金',
+    body.payment_status || '已收訖',
+    amount,
+    receivedTotalAfter,
+    remainingBalance,
+    body.note || ''
+  ];
+  if(id){
+    const r = await pool.query(`UPDATE receipts SET receipt_no=$1,receipt_date=$2,quote_id=$3,client_id=$4,quote_no=$5,project_name=$6,client_name=$7,receipt_type=$8,payment_method=$9,payment_status=$10,amount_received=$11,received_total_after=$12,remaining_balance=$13,note=$14,updated_at=CURRENT_TIMESTAMP WHERE id=$15 RETURNING *`, vals.concat([id]));
+    return r.rows[0];
+  } else {
+    const r = await pool.query(`INSERT INTO receipts (receipt_no,receipt_date,quote_id,client_id,quote_no,project_name,client_name,receipt_type,payment_method,payment_status,amount_received,received_total_after,remaining_balance,note) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`, vals);
+    return r.rows[0];
+  }
+}
+
+app.post('/api/receipts', authRequired, adminRequired, async (req,res) => {
+  const r = await saveReceipt(null, req.body || {});
+  res.json({ ok:true, id:r.id });
+});
+
+app.put('/api/receipts/:id', authRequired, adminRequired, requireNumericId, async (req,res) => {
+  const r = await saveReceipt(req.params.id, req.body || {});
+  res.json({ ok:true, id:r.id });
+});
+
+app.delete('/api/receipts/:id', authRequired, adminRequired, requireNumericId, async (req,res) => {
+  await pool.query(`DELETE FROM receipts WHERE id=$1`, [req.params.id]);
+  res.json({ ok:true });
+});
+
+app.get('/api/export/receipts', authRequired, async (req,res) => {
+  const rows = (await pool.query(`SELECT receipt_no AS "收據編號", receipt_date AS "收據日期", quote_no AS "報價單號", project_name AS "工程名稱", client_name AS "客戶名稱", receipt_type AS "收款類型", payment_method AS "收款方式", payment_status AS "款項狀態", amount_received AS "本次收款", received_total_after AS "累計已收", remaining_balance AS "剩餘未收", note AS "備註" FROM receipts ORDER BY id DESC`)).rows;
+  sendWorkbook(res, 'receipts_export.xlsx', [{ name:'receipts', rows }]);
 });
 
 app.get('/api/export/clients', authRequired, async (req,res) => {
