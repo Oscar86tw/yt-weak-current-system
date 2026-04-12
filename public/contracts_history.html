@@ -1,8 +1,8 @@
-<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>維護合約單查詢｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"></head><body><div id="app"></div><script src="/js/common.js"></script><script>
-document.getElementById('app').innerHTML=shell('資料建立 / 維護合約單 / 查詢',`<div class="list-panel"><div class="toolbar"><input id="search" placeholder="輸入單號 / 合約名稱 / 報價單號查詢"></div><div id="list"></div></div>`);
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>維護保養報價單查詢｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"></head><body><div id="app"></div><script src="/js/common.js"></script><script>
+document.getElementById('app').innerHTML=shell('資料建立 / 維護保養報價單 / 查詢',`<div class="list-panel"><div class="toolbar"><input id="search" placeholder="輸入單號 / 合約名稱 / 報價單號查詢"></div><div id="list"></div></div>`);
 let rows=[];
 function groupByMonth(arr){ const g={}; arr.forEach(r=>{const d=((r.doc_date||'').replace(/\//g,'-').slice(0,7))||'未分類'; (g[d]||(g[d]=[])).push(r);}); return g; }
-async function load(){ try{ rows=await API.listContracts(); render(); } catch(err){ alert('載入維護合約單失敗：'+err.message); } }
+async function load(){ try{ rows=await API.listContracts(); render(); } catch(err){ alert('載入維護保養報價單失敗：'+err.message); } }
 function render(){
   const k=(search.value||'').trim().toLowerCase();
   const result=rows.filter(r=>`${r.doc_no||''} ${r.contract_name||''} ${r.quote_no||''}`.toLowerCase().includes(k)||!k);
@@ -15,6 +15,6 @@ function render(){
       <div class="toolbar"><a class="btn" href="/contracts.html?id=${r.id}">修改</a><button class="danger" onclick="removeRow(${r.id},'${(r.doc_no||'').replace(/'/g,"\\'")}')">刪除</button></div>
     </div>`).join('')}</div>`).join('');
 }
-async function removeRow(id,no){ try{ if(!confirm(`確定刪除這份維護合約單？\n${no}`)) return; await API.deleteContract(id); await load(); } catch(err){ alert('刪除失敗：'+err.message); } }
+async function removeRow(id,no){ try{ if(!confirm(`確定刪除這份維護保養報價單？\n${no}`)) return; await API.deleteContract(id); await load(); } catch(err){ alert('刪除失敗：'+err.message); } }
 search.oninput=render; load();
 </script></body></html>

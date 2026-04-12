@@ -735,13 +735,13 @@ app.get('/api/contracts/:id', authRequired, requireNumericId, async (req,res,nex
 app.post('/api/contracts', authRequired, adminRequired, async (req,res) => {
   const d=req.body;
   const r=await pool.query(`INSERT INTO contracts (doc_no,doc_date,client_id,quote_id,contract_name,scope,frequency,amount,terms,approval_note) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-    [d.doc_no||'', d.doc_date||'', d.client_id||null, d.quote_id||null, d.contract_name||'', d.scope||'', d.frequency||'', Number(d.amount||0), d.terms||'', d.approval_note||'']);
+    [d.doc_no||'', d.doc_date||'', d.client_id||null, null, d.contract_name||'', d.scope||'', d.frequency||'', Number(d.amount||0), d.terms||'', (d.approval_note||'') + ((d.customer_agreed==='Y') ? '\n【業主已同意，可後續簽正式合約】' : '')]);
   res.json(r.rows[0]);
 });
 app.put('/api/contracts/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => {
   const d=req.body;
   const r=await pool.query(`UPDATE contracts SET doc_no=$1,doc_date=$2,client_id=$3,quote_id=$4,contract_name=$5,scope=$6,frequency=$7,amount=$8,terms=$9,approval_note=$10 WHERE id=$11 RETURNING *`,
-    [d.doc_no||'', d.doc_date||'', d.client_id||null, d.quote_id||null, d.contract_name||'', d.scope||'', d.frequency||'', Number(d.amount||0), d.terms||'', d.approval_note||'', req.params.id]);
+    [d.doc_no||'', d.doc_date||'', d.client_id||null, null, d.contract_name||'', d.scope||'', d.frequency||'', Number(d.amount||0), d.terms||'', (d.approval_note||'') + ((d.customer_agreed==='Y') ? '\n【業主已同意，可後續簽正式合約】' : ''), req.params.id]);
   res.json(r.rows[0]);
 });
 app.delete('/api/contracts/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => { await pool.query(`DELETE FROM contracts WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
