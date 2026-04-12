@@ -174,6 +174,8 @@ async function initDb(){
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`);
+  await pool.query(`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS quote_id INTEGER REFERENCES quotes(id) ON DELETE SET NULL`);
+  await pool.query(`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS approval_note TEXT`);
   await pool.query(`CREATE TABLE IF NOT EXISTS acceptances (
     id SERIAL PRIMARY KEY,
     doc_no TEXT,
@@ -709,16 +711,37 @@ app.put('/api/quote-tracking/:id', authRequired, adminRequired, requireNumericId
   res.json(r.rows[0]);
 });
 
-app.get('/api/contracts', authRequired, async (req,res) => res.json((await pool.query(`SELECT * FROM contracts ORDER BY id DESC`)).rows));
-app.get('/api/contracts/:id', authRequired, requireNumericId, async (req,res,next) => { const r=await pool.query(`SELECT * FROM contracts WHERE id=$1`, [req.params.id]); if(!r.rows.length) return res.status(404).json({error:'not found'}); res.json(r.rows[0]); });
+app.get('/api/contracts', authRequired, async (req,res) => {
+  const rows = (await pool.query(`
+    SELECT ct.*, q.quote_no, q.project_name, c.client_name
+    FROM contracts ct
+    LEFT JOIN quotes q ON q.id = ct.quote_id
+    LEFT JOIN clients c ON c.id = ct.client_id
+    ORDER BY ct.id DESC
+  `)).rows;
+  res.json(rows);
+});
+app.get('/api/contracts/:id', authRequired, requireNumericId, async (req,res,next) => {
+  const r=await pool.query(`
+    SELECT ct.*, q.quote_no, q.project_name, c.client_name
+    FROM contracts ct
+    LEFT JOIN quotes q ON q.id = ct.quote_id
+    LEFT JOIN clients c ON c.id = ct.client_id
+    WHERE ct.id=$1
+  `, [req.params.id]);
+  if(!r.rows.length) return res.status(404).json({error:'not found'});
+  res.json(r.rows[0]);
+});
 app.post('/api/contracts', authRequired, adminRequired, async (req,res) => {
   const d=req.body;
-  const r=await pool.query(`INSERT INTO contracts (doc_no,doc_date,client_id,contract_name,scope,frequency,amount,terms) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`, [d.doc_no||'', d.doc_date||'', d.client_id||null, d.contract_name||'', d.scope||'', d.frequency||'', Number(d.amount||0), d.terms||'']);
+  const r=await pool.query(`INSERT INTO contracts (doc_no,doc_date,client_id,quote_id,contract_name,scope,frequency,amount,terms,approval_note) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+    [d.doc_no||'', d.doc_date||'', d.client_id||null, d.quote_id||null, d.contract_name||'', d.scope||'', d.frequency||'', Number(d.amount||0), d.terms||'', d.approval_note||'']);
   res.json(r.rows[0]);
 });
 app.put('/api/contracts/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => {
   const d=req.body;
-  const r=await pool.query(`UPDATE contracts SET doc_no=$1,doc_date=$2,client_id=$3,contract_name=$4,scope=$5,frequency=$6,amount=$7,terms=$8 WHERE id=$9 RETURNING *`, [d.doc_no||'', d.doc_date||'', d.client_id||null, d.contract_name||'', d.scope||'', d.frequency||'', Number(d.amount||0), d.terms||'', req.params.id]);
+  const r=await pool.query(`UPDATE contracts SET doc_no=$1,doc_date=$2,client_id=$3,quote_id=$4,contract_name=$5,scope=$6,frequency=$7,amount=$8,terms=$9,approval_note=$10 WHERE id=$11 RETURNING *`,
+    [d.doc_no||'', d.doc_date||'', d.client_id||null, d.quote_id||null, d.contract_name||'', d.scope||'', d.frequency||'', Number(d.amount||0), d.terms||'', d.approval_note||'', req.params.id]);
   res.json(r.rows[0]);
 });
 app.delete('/api/contracts/:id', authRequired, adminRequired, requireNumericId, async (req,res,next) => { await pool.query(`DELETE FROM contracts WHERE id=$1`, [req.params.id]); res.json({ ok:true }); });
