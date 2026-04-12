@@ -40,6 +40,17 @@ function resetSummary(){
 async function bindSummary(id){
   try{
     if(!id){ resetSummary(); renderPreview(); return; }
+
+    const localRow = quoteRows.find(q => String(q.id) === String(id));
+    if (localRow) {
+      quote_no_el.value = localRow.quote_no || '';
+      client_name_el.value = localRow.client_name || '';
+      project_name_el.value = localRow.project_name || '';
+      quote_total_el.value = Number(localRow.total || 0);
+      renderPreview();
+      return;
+    }
+
     const s = await API.receiptSummary(id);
     quote_no_el.value = s.quote_no || '';
     client_name_el.value = s.client_name || '';
@@ -47,7 +58,8 @@ async function bindSummary(id){
     quote_total_el.value = Number(s.quote_total || 0);
     renderPreview();
   }catch(err){
-    alert('報價單資料帶入失敗：' + err.message);
+    resetSummary();
+    alert('報價單資料帶入失敗，系統收到的是 HTML 頁面而不是 JSON，通常表示 API 路由未正確回傳資料。');
   }
 }
 
@@ -136,7 +148,7 @@ async function loadDoc(){
 document.getElementById('app').innerHTML = shell('資料建立 / 收據 / 新增', `
 <div class="form-wrap">
   <div class="form-topbar">
-    <div class="form-brand"><h1>昱拓弱電有限公司｜V3.14.6A 收據連動修正版</h1><p>資料建立 / 收據 / 新增</p></div>
+    <div class="form-brand"><h1>昱拓弱電有限公司｜V3.14.6A 收據帶值修正版</h1><p>資料建立 / 收據 / 新增</p></div>
     <div class="form-actions no-print"><button onclick="saveDoc()">存檔</button><button class="light" onclick="renderPreview()">更新預覽</button><button class="light" onclick="window.print()">列印正式版</button></div>
   </div>
   <div class="form-grid">
