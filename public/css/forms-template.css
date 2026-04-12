@@ -264,3 +264,42 @@
   .pdf-header-grid,.pdf-quote-box,.pdf-table th,.pdf-table td,.pdf-terms,.pdf-approval{font-size:12px}
   .pdf-sign-box{min-height:260px}
 }
+
+
+.link-grid{display:grid;grid-template-columns:1fr;gap:18px}
+.section-title{font-size:18px;font-weight:700;margin-bottom:12px;color:#0f172a}
+.doc-page{padding:20px}
+.doc-header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px;background:#fff;border:1px solid #d9e1ee;border-radius:20px;padding:20px 24px}
+.doc-header h1{margin:0;font-size:22px}
+.doc-header p{margin:6px 0 0;color:#64748b}
+.doc-actions button{padding:10px 16px;border:none;border-radius:12px;background:#1f4b89;color:#fff;cursor:pointer}
+.filter-panel{background:#fff;border:1px solid #d9e1ee;border-radius:18px;padding:18px 20px;margin-bottom:18px}
+.filter-row{display:grid;grid-template-columns:1fr;gap:14px}
+.filter-row label{display:block;margin-bottom:6px;font-weight:600;color:#334155}
+.filter-row input{width:100%;padding:12px;border:1px solid #cfd8e6;border-radius:12px;background:#fff}
+.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.summary-card{background:#fff;border:1px solid #d9e1ee;border-radius:18px;padding:18px 20px}
+.summary-title{color:#64748b;margin-bottom:8px}
+.summary-value{font-size:24px;font-weight:700;color:#0f172a}
+.table-wrap{background:#fff;border:1px solid #d9e1ee;border-radius:20px;padding:18px;overflow:auto}
+.business-table{width:100%;border-collapse:collapse}
+.business-table th,.business-table td{border:1px solid #d9e1ee;padding:10px 12px;font-size:14px;vertical-align:top}
+.business-table th{background:#f8fafc;white-space:nowrap}
+.empty-row{text-align:center;color:#64748b;padding:24px 0}
+.btn-sm{display:inline-block;padding:8px 12px;border-radius:10px;background:#1f4b89;color:#fff;text-decoration:none;border:none;cursor:pointer}
+@media (max-width:1100px){.summary-grid{grid-template-columns:1fr 1fr}}
+@media print{
+  @page{size:A4 landscape;margin:10mm}
+  body{background:#fff !important}
+  .no-print, .sidebar, .shell-side, .shell-header, nav, header, aside{display:none !important}
+  #app,.doc-page{all:unset}
+  .doc-header{display:block;border:none;padding:0;margin:0 0 10px 0}
+  .doc-header h1{font-size:20px}
+  .doc-header p{font-size:12px;color:#333}
+  .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0 0 10px 0}
+  .summary-card{border:1px solid #222;border-radius:0;padding:10px}
+  .summary-title{font-size:12px;color:#111}
+  .summary-value{font-size:18px}
+  .table-wrap{border:none;padding:0;margin-bottom:10px}
+  .business-table th,.business-table td{border:1px solid #222;padding:7px 8px;font-size:12px}
+}

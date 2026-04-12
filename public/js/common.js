@@ -41,6 +41,7 @@ window.API={
  async listReceipts(){return (await this.request('/api/receipts')).json();},
  async getReceipt(id){return (await this.request('/api/receipts/'+id)).json();},
  async receiptSummary(quoteId){return (await this.request('/api/receipts-summary/'+quoteId)).json();},
+ async linkedDocs(keyword=''){return (await this.request('/api/linked-docs?keyword='+encodeURIComponent(keyword))).json();},
  async createReceipt(p){return (await this.request('/api/receipts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
  async updateReceipt(id,p){return (await this.request('/api/receipts/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})).json();},
  async deleteReceipt(id){return (await this.request('/api/receipts/'+id,{method:'DELETE'})).json();},

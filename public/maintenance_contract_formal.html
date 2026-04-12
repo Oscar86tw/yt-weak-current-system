@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>正式維護合約單｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/css/forms-template.css"></head><body><div id="app"></div><script src="/js/common.js"></script><script>
 document.getElementById('app').innerHTML = shell('資料建立 / 正式維護合約單 / 新增', `<div class="form-wrap">
-  <div class="form-topbar"><div class="form-brand"><h1>昱拓弱電有限公司｜V3.14.6A 正式維護合約單</h1><p>資料建立 / 正式維護合約單 / 新增</p></div><div class="form-actions no-print" id="topActions"></div></div>
+  <div class="form-topbar"><div class="form-brand"><h1>昱拓弱電有限公司｜V3.14.6A 正式維護合約單鎖定版</h1><p>資料建立 / 正式維護合約單 / 新增</p></div><div class="form-actions no-print" id="topActions"></div></div>
   <div class="form-grid"><div class="form-panel" id="leftPanel"></div><div class="form-preview" id="preview"></div></div>
 </div>`);
 
@@ -32,7 +32,7 @@ function bindBase(){
   refs.approval_note.value = d.approval_note || '';
 }
 function renderForm(){
-  topActions.innerHTML = `<button onclick="saveDoc()">儲存到系統</button><button class="secondary" onclick="window.print()">列印 / 另存 PDF</button><button class="light" onclick="location.href='/contracts_history.html'">返回清單</button>`;
+  topActions.innerHTML = `<button id="btn-save" onclick="saveDoc()">儲存到系統</button><button id="btn-print" class="secondary" onclick="window.print()">重新列印</button><button id="btn-back" class="light" onclick="location.href='/contracts_history.html'">返回清單</button>`;
   leftPanel.innerHTML = `<div class="form-section-title">正式維護合約資料</div>
 <label>合約單號</label><input id="doc_no">
 <div class="form-row"><div><label>日期</label><input id="doc_date" type="date"></div><div><label>客戶</label><select id="client_id"><option value="">請選擇客戶</option>${clients.map(c=>`<option value="${c.id}">${c.client_name}</option>`).join('')}</select></div></div>
@@ -41,7 +41,8 @@ function renderForm(){
 <label>服務範圍</label><textarea id="scope" rows="10"></textarea>
 <div class="form-row"><div><label>合約金額</label><input id="amount" type="number"></div><div></div></div>
 <label>合約條款</label><textarea id="terms" rows="8"></textarea>
-<label>簽呈</label><textarea id="approval_note" rows="4"></textarea>`;
+<label>簽呈</label><textarea id="approval_note" rows="4"></textarea>
+<div id="lock-tip" class="hint" style="margin-top:10px;display:none;background:#eef6ff;border:1px solid #bfdbfe;color:#1e3a8a;">本筆正式維護合約單已存檔，欄位已自動鎖定。此頁僅保留重新列印與返回清單功能。</div>`;
   initRefs();
   bindBase();
   ['doc_no','doc_date','client_id','contract_name','scope','frequency','amount','terms','approval_note'].forEach(id => { refs[id].addEventListener('input', renderPreview); refs[id].addEventListener('change', renderPreview); });
@@ -76,11 +77,28 @@ function renderPreview(){
 async function saveDoc(){
   const d = collect();
   if(!d.client_id) return alert('請選擇客戶');
-  const r = await API.createContract(d);
+  let r;
+  if(state.id) r = await API.updateContract(state.id, d);
+  else r = await API.createContract(d);
   if(r.id){
-    alert('正式維護合約單已建立。');
-    location.href = '/maintenance_contract_formal.html?id=' + r.id + '&autoprint=1';
+    alert('正式維護合約單已存檔，將自動跳轉正式列印頁。');
+    location.href = '/maintenance_contract_formal.html?id=' + r.id + '&autoprint=1&locked=1';
   }
+}
+
+function lockSavedForm(){
+  ['doc_date','client_id','contract_name','frequency','amount','terms','approval_note','scope'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.disabled = true;
+    el.readOnly = true;
+    el.style.background = '#f5f7fb';
+    el.style.cursor = 'not-allowed';
+  });
+  const saveBtn = document.getElementById('btn-save');
+  if(saveBtn) saveBtn.style.display = 'none';
+  const tip = document.getElementById('lock-tip');
+  if(tip) tip.style.display = 'block';
 }
 (async()=>{
   clients = await API.getClients();
@@ -108,6 +126,7 @@ async function saveDoc(){
     window._formLoad = d;
   }
   renderForm();
+  if ((qs('locked') || '') === '1') lockSavedForm();
   if ((qs('autoprint') || '') === '1') setTimeout(()=>window.print(), 500);
 })();
 </script></body></html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>維護保養關聯查詢｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/css/forms-template.css"></head><body><div id="app"></div><script src="/js/common.js"></script><script>
+document.getElementById('app').innerHTML = shell('資料建立 / 維護保養關聯查詢', `
+<div class="doc-page">
+  <div class="doc-header">
+    <div>
+      <h1>昱拓弱電有限公司｜V3.14.6A 維護保養報價／合約／收據 串聯查詢頁</h1>
+      <p>查詢同一客戶下的維護保養報價單、正式維護合約單與收據資料</p>
+    </div>
+    <div class="doc-actions no-print"><button onclick="window.print()">列印清單</button></div>
+  </div>
+
+  <div class="filter-panel no-print">
+    <div class="filter-row">
+      <div>
+        <label>關鍵字查詢</label>
+        <input id="kw" placeholder="輸入客戶名稱 / 單號 / 合約名稱 / 工程名稱" oninput="load()">
+      </div>
+    </div>
+  </div>
+
+  <div id="summary" class="summary-grid"></div>
+
+  <div class="link-grid">
+    <div class="table-wrap">
+      <div class="section-title">維護保養報價單／正式維護合約單</div>
+      <table class="business-table">
+        <thead>
+          <tr>
+            <th>種類</th>
+            <th>單號</th>
+            <th>日期</th>
+            <th>客戶名稱</th>
+            <th>名稱</th>
+            <th>金額</th>
+            <th class="no-print">操作</th>
+          </tr>
+        </thead>
+        <tbody id="contract_body"></tbody>
+      </table>
+    </div>
+
+    <div class="table-wrap">
+      <div class="section-title">收據</div>
+      <table class="business-table">
+        <thead>
+          <tr>
+            <th>收據編號</th>
+            <th>日期</th>
+            <th>客戶名稱</th>
+            <th>報價單號</th>
+            <th>工程名稱</th>
+            <th>本次收款</th>
+            <th>收款方式</th>
+            <th class="no-print">操作</th>
+          </tr>
+        </thead>
+        <tbody id="receipt_body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>`);
+
+async function load(){
+  const keyword = (document.getElementById('kw').value || '').trim();
+  const data = await API.linkedDocs(keyword);
+  const contracts = data.contracts || [];
+  const receipts = data.receipts || [];
+  const quoteCount = contracts.filter(x => x.contract_kind === 'maintenance_quote').length;
+  const formalCount = contracts.filter(x => x.contract_kind === 'formal_maintenance_contract').length;
+  const receiptTotal = receipts.reduce((s, r) => s + Number(r.amount_received || 0), 0);
+
+  summary.innerHTML = `
+    <div class="summary-card"><div class="summary-title">維護保養報價單</div><div class="summary-value">${quoteCount}</div></div>
+    <div class="summary-card"><div class="summary-title">正式維護合約單</div><div class="summary-value">${formalCount}</div></div>
+    <div class="summary-card"><div class="summary-title">收據筆數</div><div class="summary-value">${receipts.length}</div></div>
+    <div class="summary-card"><div class="summary-title">收款總額</div><div class="summary-value">NT$ ${money(receiptTotal)}</div></div>
+  `;
+
+  contract_body.innerHTML = contracts.length ? contracts.map(r => `
+    <tr>
+      <td>${r.contract_kind === 'formal_maintenance_contract' ? '正式維護合約單' : '維護保養報價單'}</td>
+      <td>${r.doc_no || ''}</td>
+      <td>${String(r.doc_date || '').slice(0,10)}</td>
+      <td>${r.client_name || ''}</td>
+      <td>${r.contract_name || ''}</td>
+      <td style="text-align:right;">NT$ ${money(r.amount || 0)}</td>
+      <td class="no-print">
+        <a class="btn-sm" href="${r.contract_kind === 'formal_maintenance_contract' ? '/maintenance_contract_formal.html' : '/contracts.html'}?id=${r.id}">查看</a>
+      </td>
+    </tr>
+  `).join('') : '<tr><td colspan="7" class="empty-row">查無資料</td></tr>';
+
+  receipt_body.innerHTML = receipts.length ? receipts.map(r => `
+    <tr>
+      <td>${r.receipt_no || ''}</td>
+      <td>${String(r.receipt_date || '').slice(0,10)}</td>
+      <td>${r.client_name || ''}</td>
+      <td>${r.quote_no || ''}</td>
+      <td>${r.project_name || ''}</td>
+      <td style="text-align:right;">NT$ ${money(r.amount_received || 0)}</td>
+      <td>${r.payment_method || ''}</td>
+      <td class="no-print"><a class="btn-sm" href="/receipt.html?id=${r.id}">查看</a></td>
+    </tr>
+  `).join('') : '<tr><td colspan="8" class="empty-row">查無資料</td></tr>';
+}
+load();
+</script></body></html>
