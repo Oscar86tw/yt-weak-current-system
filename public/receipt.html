@@ -1,47 +1,71 @@
 <!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>收據｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/css/forms-template.css"></head><body><div id="app"></div><script src="/js/common.js"></script><script>
 const state = { id: qs('id') || '' };
 let quoteRows = [];
+let receipt_no_el, receipt_date_el, quote_id_el, quote_no_el, client_name_el, project_name_el, quote_total_el, amount_received_el, payment_method_el, note_el, preview_el;
+
+function initRefs(){
+  receipt_no_el = document.getElementById('receipt_no');
+  receipt_date_el = document.getElementById('receipt_date');
+  quote_id_el = document.getElementById('quote_id');
+  quote_no_el = document.getElementById('quote_no');
+  client_name_el = document.getElementById('client_name');
+  project_name_el = document.getElementById('project_name');
+  quote_total_el = document.getElementById('quote_total');
+  amount_received_el = document.getElementById('amount_received');
+  payment_method_el = document.getElementById('payment_method');
+  note_el = document.getElementById('note');
+  preview_el = document.getElementById('preview');
+}
 
 function collect(){
   return {
-    receipt_no: receipt_no.value,
-    receipt_date: receipt_date.value,
-    quote_id: quote_id.value || null,
+    receipt_no: receipt_no_el.value,
+    receipt_date: receipt_date_el.value,
+    quote_id: quote_id_el.value || null,
     receipt_type: '部分收款',
-    payment_method: payment_method.value,
+    payment_method: payment_method_el.value,
     payment_status: '已收訖',
-    amount_received: Number(amount_received.value || 0),
-    note: note.value
+    amount_received: Number(amount_received_el.value || 0),
+    note: note_el.value
   };
 }
 
 function resetSummary(){
-  quote_no.value=''; client_name.value=''; project_name.value=''; quote_total.value='0';
+  quote_no_el.value = '';
+  client_name_el.value = '';
+  project_name_el.value = '';
+  quote_total_el.value = '0';
 }
 
 async function bindSummary(id){
-  if(!id){ resetSummary(); renderPreview(); return; }
-  const s = await API.receiptSummary(id);
-  quote_no.value = s.quote_no || '';
-  client_name.value = s.client_name || '';
-  project_name.value = s.project_name || '';
-  quote_total.value = Number(s.quote_total || 0);
-  renderPreview();
+  try{
+    if(!id){ resetSummary(); renderPreview(); return; }
+    const s = await API.receiptSummary(id);
+    quote_no_el.value = s.quote_no || '';
+    client_name_el.value = s.client_name || '';
+    project_name_el.value = s.project_name || '';
+    quote_total_el.value = Number(s.quote_total || 0);
+    renderPreview();
+  }catch(err){
+    alert('報價單資料帶入失敗：' + err.message);
+  }
 }
 
 function renderPreview(){
-  preview.innerHTML = `
+  preview_el.innerHTML = `
     <div class="print-sheet">
-      <div class="doc-title">正 式 收 據</div><div class="doc-block" style="margin-top:0;margin-bottom:12px;"><strong>昱拓弱電有限公司</strong><br>電話：0960-770-512<br>地址：桃園市中壢區榮安一街490號13樓</div>
-      <div class="doc-meta">收據編號：${receipt_no.value || ''}　日期：${receipt_date.value || ''}</div>
+      <div class="doc-title">正 式 收 據</div>
+      <div class="doc-block" style="margin-top:0;margin-bottom:12px;"><strong>昱拓弱電有限公司</strong><br>電話：0960-770-512<br>地址：桃園市中壢區榮安一街490號13樓</div>
+      <div class="doc-meta">收據編號：${receipt_no_el.value || ''}　日期：${receipt_date_el.value || ''}</div>
       <table class="doc-table">
-        <tr><th>報價單號</th><td>${quote_no.value || ''}</td><th>客戶名稱</th><td>${client_name.value || ''}</td></tr>
-        <tr><th>工程名稱</th><td colspan="3">${project_name.value || ''}</td></tr>
-        <tr><th>報價總額</th><td>NT$ ${money(quote_total.value || 0)}</td><th>本次收款</th><td>NT$ ${money(amount_received.value || 0)}</td></tr>
-        <tr><th>收款類型</th><td>部分收款</td><th>收款方式</th><td>${payment_method.value || ''}</td></tr>
+        <tr><th>報價單號</th><td>${quote_no_el.value || ''}</td><th>客戶名稱</th><td>${client_name_el.value || ''}</td></tr>
+        <tr><th>工程名稱</th><td colspan="3">${project_name_el.value || ''}</td></tr>
+        <tr><th>報價總額</th><td>NT$ ${money(quote_total_el.value || 0)}</td><th>本次收款</th><td>NT$ ${money(amount_received_el.value || 0)}</td></tr>
+        <tr><th>收款類型</th><td>部分收款</td><th>收款方式</th><td>${payment_method_el.value || ''}</td></tr>
         <tr><th>款項狀態</th><td colspan="3">已收訖</td></tr>
       </table>
-      <div class="doc-block"><strong>匯款資訊</strong><br>銀行：__________　分行：__________<br>戶名：昱拓弱電有限公司<br>帳號：________________________________</div><div class="doc-block"><strong>備註：</strong>${note.value || '—'}</div>
+      <div class="doc-block"><strong>匯款資訊</strong><br>銀行：__________　分行：__________<br>戶名：昱拓弱電有限公司<br>帳號：________________________________</div>
+      <div class="doc-block"><strong>備註：</strong>${note_el.value || '—'}</div>
       <div class="doc-block"><strong>備註條款</strong><br>
       1. 本收據僅作為本次實際收款之憑證，並以本公司實際入帳或實際受領結果為準。<br>
       2. 本收據所載工程內容、金額與收款性質，係依對應報價單、雙方確認內容或實際施工範圍辦理。<br>
@@ -59,11 +83,11 @@ function renderPreview(){
 
 async function loadQuotes(){
   quoteRows = await API.listReceiptAvailableQuotes(state.id || '');
-  quote_id.innerHTML = '<option value="">請選擇報價單</option>' + quoteRows.map(q =>
+  quote_id_el.innerHTML = '<option value="">請選擇報價單</option>' + quoteRows.map(q =>
     `<option value="${q.id}">${q.quote_no || ''}｜${q.project_name || ''}</option>`
   ).join('');
   if (!quoteRows.length && !state.id) {
-    quote_id.innerHTML = '<option value="">目前沒有可開立收據的報價單</option>';
+    quote_id_el.innerHTML = '<option value="">目前沒有可開立收據的報價單</option>';
   }
 }
 
@@ -92,18 +116,18 @@ async function loadDoc(){
   await loadQuotes();
   if(state.id){
     const d = await API.getReceipt(state.id);
-    receipt_no.value = d.receipt_no || '';
-    receipt_date.value = d.receipt_date || today();
-    quote_id.value = d.quote_id ? String(d.quote_id) : '';
-    payment_method.value = d.payment_method || '現金';
-    amount_received.value = d.amount_received || 0;
-    note.value = d.note || '';
-    await bindSummary(quote_id.value);
+    receipt_no_el.value = d.receipt_no || '';
+    receipt_date_el.value = d.receipt_date || today();
+    quote_id_el.value = d.quote_id ? String(d.quote_id) : '';
+    payment_method_el.value = d.payment_method || '現金';
+    amount_received_el.value = d.amount_received || 0;
+    note_el.value = d.note || '';
+    await bindSummary(quote_id_el.value);
   } else {
     const next = await API.nextNo('receipt');
-    receipt_no.value = next.doc_no || '';
-    receipt_date.value = today();
-    payment_method.value = '現金';
+    receipt_no_el.value = next.doc_no || '';
+    receipt_date_el.value = today();
+    payment_method_el.value = '現金';
     resetSummary();
     renderPreview();
   }
@@ -112,14 +136,14 @@ async function loadDoc(){
 document.getElementById('app').innerHTML = shell('資料建立 / 收據 / 新增', `
 <div class="form-wrap">
   <div class="form-topbar">
-    <div class="form-brand"><h1>昱拓弱電有限公司｜V3.14.6A 收據最終簽收版</h1><p>資料建立 / 收據 / 新增</p></div>
+    <div class="form-brand"><h1>昱拓弱電有限公司｜V3.14.6A 收據連動修正版</h1><p>資料建立 / 收據 / 新增</p></div>
     <div class="form-actions no-print"><button onclick="saveDoc()">存檔</button><button class="light" onclick="renderPreview()">更新預覽</button><button class="light" onclick="window.print()">列印正式版</button></div>
   </div>
   <div class="form-grid">
     <div class="form-panel">
       <div class="form-row"><div><label>收據編號</label><input id="receipt_no" readonly></div><div><label>收據日期</label><input id="receipt_date" type="date" oninput="renderPreview()"></div></div>
       <label>報價單下拉選單</label><select id="quote_id" onchange="bindSummary(this.value)"></select>
-      <div class="hint" style="margin:8px 0 14px;">選取報價單後，系統會自動帶入報價單號、客戶名稱、工程名稱與報價總額。</div>
+      <div class="hint" style="margin:8px 0 14px;">點選報價單後，下面欄位會自動連動帶入報價單號、客戶名稱、工程名稱與報價總額。</div>
 
       <div class="form-row">
         <div><label>報價單號</label><input id="quote_no" readonly style="background:#f5f7fb;"></div>
@@ -144,5 +168,7 @@ document.getElementById('app').innerHTML = shell('資料建立 / 收據 / 新增
     <div class="form-preview" id="preview"></div>
   </div>
 </div>`);
+
+initRefs();
 loadDoc();
 </script></body></html>
