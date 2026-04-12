@@ -1,0 +1,50 @@
+services:
+  app:
+    build: .
+    container_name: yt_app
+    ports:
+      - "10000:10000"
+    environment:
+      PORT: 10000
+      DB_URL: postgresql://postgres:1234@db:5432/yt
+      REDIS_URL: redis://redis:6379
+      LINE_TOKEN: CHANGE_ME
+    depends_on:
+      - db
+      - redis
+
+  worker:
+    build: .
+    container_name: yt_worker
+    command: node server/queue/worker.js
+    environment:
+      PORT: 10000
+      DB_URL: postgresql://postgres:1234@db:5432/yt
+      REDIS_URL: redis://redis:6379
+      LINE_TOKEN: CHANGE_ME
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres:16-alpine
+    container_name: yt_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: yt
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  redis:
+    image: redis:7-alpine
+    container_name: yt_redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  db_data:

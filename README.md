@@ -1,21 +1,28 @@
-# 昱拓弱電｜V3.14.6A.3.2.1 案件工作台版
+# yt-v316-final
 
-## 本版新增
-- 第一層移除獨立「查詢」
-- 系統設定新增設備類別獨立模組
-- 設備表單類別與設備類別資料同步，下拉式選單
-- 第三層新增分析頁
-- 六個模組都提供：新增 / 查詢 / 清單列表 / 分析
-- 清單頁以月份分組顯示
-- 當日分析顯示：今日筆數與明細摘要
-  - 報價單含單號與合計金額
-  - 進貨單含單號與總額
-  - 維護合約單含單號與金額
-  - 驗收單含單號
-  - 設備含編號、類別、名稱
-  - 供應商含名稱、聯絡人
+本專案是可本地 Docker 一鍵部署的收款系統骨架，包含：
 
-## 必要環境變數
-- DATABASE_URL
-- ADMIN_USER
-- ADMIN_PASS
+- Webhook 收款事件入口
+- BullMQ + Redis 佇列
+- Worker 非同步處理
+- PostgreSQL 寫入收據與付款
+- LINE Messaging API 推送訊息（需自行填入 token）
+- 簡易手機收款頁
+
+## 本地啟動
+
+```bash
+docker compose up -d --build
+```
+
+## 測試 webhook
+
+```bash
+curl -X POST http://localhost:10000/api/webhook/linepay \
+  -H "Content-Type: application/json" \
+  -d '{"orderId":"YA001","amount":20000,"transactionId":"TX001"}'
+```
+
+## 驗證
+- API： http://localhost:10000/health
+- 手機頁： http://localhost:10000/mobile/
