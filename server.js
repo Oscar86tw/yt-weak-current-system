@@ -1413,6 +1413,34 @@ app.post('/api/system/backup/native/import', authRequired, adminRequired, upload
 });
 
 
+
+app.get('/api/receipt-available-quotes', authRequired, async (req,res) => {
+  const excludeReceiptId = Number(req.query.exclude_receipt_id || 0);
+  let rows;
+  if (excludeReceiptId) {
+    rows = (await pool.query(`
+      SELECT q.*, COALESCE(c.client_name,'') AS client_name
+      FROM quotes q
+      LEFT JOIN clients c ON c.id=q.client_id
+      WHERE q.id NOT IN (
+        SELECT quote_id FROM receipts WHERE quote_id IS NOT NULL AND id <> $1
+      )
+      ORDER BY q.id DESC
+    `, [excludeReceiptId])).rows;
+  } else {
+    rows = (await pool.query(`
+      SELECT q.*, COALESCE(c.client_name,'') AS client_name
+      FROM quotes q
+      LEFT JOIN clients c ON c.id=q.client_id
+      WHERE q.id NOT IN (
+        SELECT quote_id FROM receipts WHERE quote_id IS NOT NULL
+      )
+      ORDER BY q.id DESC
+    `)).rows;
+  }
+  res.json(rows);
+});
+
 app.get('/api/receipts', authRequired, async (req,res) => {
   const r = await pool.query(`
     SELECT rc.*, COALESCE(c.client_name, rc.client_name, '未指定客戶') AS client_name_display
@@ -1451,13 +1479,37 @@ app.get('/api/receipts-summary/:quote_id', authRequired, requireNumericId, async
 
 async function saveReceipt(id, body){
   const amount = Number(body.amount_received || 0);
+  if (amount <= 0) {
+    const err = new Error('amount_required');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (body.quote_id) {
+    const dup = await pool.query(
+      `SELECT id FROM receipts WHERE quote_id=$1 ${id ? 'AND id<>$2' : ''} LIMIT 1`,
+      [body.quote_id].concat(id ? [id] : [])
+    );
+    if (dup.rows.length) {
+      const err = new Error('quote_already_has_receipt');
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+
   const summary = body.quote_id ? await pool.query(`SELECT COALESCE(SUM(amount_received),0) AS received_total FROM receipts WHERE quote_id=$1 ${id ? 'AND id<>$2' : ''}`, [body.quote_id].concat(id ? [id] : [])) : { rows:[{received_total:0}] };
   let quoteInfo = { quote_no: body.quote_no || '', project_name: body.project_name || '', client_id: body.client_id || null, client_name: body.client_name || '', quote_total: Number(body.quote_total||0) };
   if(body.quote_id){
     const q = await pool.query(`SELECT q.quote_no,q.project_name,q.client_id,q.total,COALESCE(c.client_name,'') AS client_name FROM quotes q LEFT JOIN clients c ON c.id=q.client_id WHERE q.id=$1`, [body.quote_id]);
     if(q.rows.length) quoteInfo = { ...quoteInfo, ...q.rows[0], quote_total: Number(q.rows[0].total||0) };
   }
-  const receivedTotalAfter = Number(summary.rows[0].received_total || 0) + amount;
+  const receivedTotalBefore = Number(summary.rows[0].received_total || 0);
+  if (Number(quoteInfo.quote_total || 0) > 0 && amount > Number(quoteInfo.quote_total || 0)) {
+    const err = new Error('amount_exceeds_quote_total');
+    err.statusCode = 400;
+    throw err;
+  }
+  const receivedTotalAfter = receivedTotalBefore + amount;
   const remainingBalance = Math.max(Number(quoteInfo.quote_total || 0) - receivedTotalAfter, 0);
   const vals = [
     body.receipt_no || '',
@@ -1485,13 +1537,21 @@ async function saveReceipt(id, body){
 }
 
 app.post('/api/receipts', authRequired, adminRequired, async (req,res) => {
-  const r = await saveReceipt(null, req.body || {});
-  res.json({ ok:true, id:r.id });
+  try {
+    const r = await saveReceipt(null, req.body || {});
+    res.json({ ok:true, id:r.id });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
 });
 
 app.put('/api/receipts/:id', authRequired, adminRequired, requireNumericId, async (req,res) => {
-  const r = await saveReceipt(req.params.id, req.body || {});
-  res.json({ ok:true, id:r.id });
+  try {
+    const r = await saveReceipt(req.params.id, req.body || {});
+    res.json({ ok:true, id:r.id });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
 });
 
 app.delete('/api/receipts/:id', authRequired, adminRequired, requireNumericId, async (req,res) => {

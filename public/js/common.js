@@ -323,3 +323,8 @@ API.getUnits = async () => jsonOrThrow(await API.request('/api/units'));
 API.createUnit = async (p) => jsonOrThrow(await API.request('/api/units',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}));
 API.updateUnit = async (id,p) => jsonOrThrow(await API.request('/api/units/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}));
 API.deleteUnit = async (id) => jsonOrThrow(await API.request('/api/units/'+id,{method:'DELETE'}));
+
+API.listReceiptAvailableQuotes = async (excludeReceiptId='') => {
+  const qs = excludeReceiptId ? ('?exclude_receipt_id=' + encodeURIComponent(excludeReceiptId)) : '';
+  return (await API.request('/api/receipt-available-quotes' + qs)).json();
+};

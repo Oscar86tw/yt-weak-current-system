@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>收據｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/css/forms-template.css"></head><body><div id="app"></div><script src="/js/common.js"></script><script>
 const state = { id: qs('id') || '' };
-let quotes = [];
+let quoteRows = [];
 
 function collect(){
   return {
@@ -15,42 +15,31 @@ function collect(){
   };
 }
 
-async function bindSummary(id){
-  if(!id){ 
-    quote_no.value=''; project_name.value=''; client_name.value=''; quote_total.value='0'; received_total_after.value='0'; remaining_balance.value='0'; 
-    return; 
-  }
-  const s = await API.receiptSummary(id);
-  quote_no.value = s.quote_no || '';
-  project_name.value = s.project_name || '';
-  client_name.value = s.client_name || '';
-  quote_total.value = Number(s.quote_total || 0);
-  const current = Number(amount_received.value || 0);
-  received_total_after.value = Number(s.received_total || 0) + current;
-  remaining_balance.value = Math.max(Number(s.remaining_balance || 0) - current, 0);
+function resetSummary(){
+  quote_no.value=''; client_name.value=''; project_name.value=''; quote_total.value='0';
 }
 
-async function onAmountChange(){
-  if(!quote_id.value) return;
-  const s = await API.receiptSummary(quote_id.value);
-  const current = Number(amount_received.value || 0);
-  received_total_after.value = Number(s.received_total || 0) + current;
-  remaining_balance.value = Math.max(Number(s.quote_total || 0) - Number(received_total_after.value || 0), 0);
+async function bindSummary(id){
+  if(!id){ resetSummary(); renderPreview(); return; }
+  const s = await API.receiptSummary(id);
+  quote_no.value = s.quote_no || '';
+  client_name.value = s.client_name || '';
+  project_name.value = s.project_name || '';
+  quote_total.value = Number(s.quote_total || 0);
   renderPreview();
 }
 
 function renderPreview(){
-  const amount = Number(amount_received.value || 0);
   preview.innerHTML = `
     <div class="print-sheet">
       <div class="doc-title">收據（版本②｜防爭議強化版）</div>
       <div class="doc-meta">收據編號：${receipt_no.value || ''}　日期：${receipt_date.value || ''}</div>
       <table class="doc-table">
-        <tr><th>報價單號</th><td>${quote_no.value || ''}</td><th>工程名稱</th><td>${project_name.value || ''}</td></tr>
-        <tr><th>客戶名稱</th><td>${client_name.value || ''}</td><th>收款類型</th><td>${receipt_type.value || ''}</td></tr>
-        <tr><th>收款方式</th><td>${payment_method.value || ''}</td><th>款項狀態</th><td>${payment_status.value || ''}</td></tr>
-        <tr><th>報價總額</th><td>NT$ ${money(quote_total.value || 0)}</td><th>本次收款</th><td>NT$ ${money(amount)}</td></tr>
-        <tr><th>累計已收</th><td>NT$ ${money(received_total_after.value || 0)}</td><th>剩餘未收</th><td>NT$ ${money(remaining_balance.value || 0)}</td></tr>
+        <tr><th>報價單號</th><td>${quote_no.value || ''}</td><th>客戶名稱</th><td>${client_name.value || ''}</td></tr>
+        <tr><th>工程名稱</th><td colspan="3">${project_name.value || ''}</td></tr>
+        <tr><th>報價總額</th><td>NT$ ${money(quote_total.value || 0)}</td><th>本次收款</th><td>NT$ ${money(amount_received.value || 0)}</td></tr>
+        <tr><th>收款類型</th><td>${receipt_type.value || ''}</td><th>收款方式</th><td>${payment_method.value || ''}</td></tr>
+        <tr><th>款項狀態</th><td colspan="3">${payment_status.value || ''}</td></tr>
       </table>
       <div class="doc-block"><strong>備註：</strong>${note.value || '—'}</div>
       <div class="doc-block"><strong>防爭議強化條款</strong><br>
@@ -61,6 +50,16 @@ function renderPreview(){
       5. 收款方式、票據兌現與實際入帳狀況，仍以實際到款結果為準。
       </div>
     </div>`;
+}
+
+async function loadQuotes(){
+  quoteRows = await API.listReceiptAvailableQuotes(state.id || '');
+  quote_id.innerHTML = '<option value="">請選擇報價單</option>' + quoteRows.map(q =>
+    `<option value="${q.id}">${q.quote_no || ''}｜${q.project_name || ''}</option>`
+  ).join('');
+  if (!quoteRows.length && !state.id) {
+    quote_id.innerHTML = '<option value="">目前沒有可開立收據的報價單</option>';
+  }
 }
 
 async function saveDoc(){
@@ -76,13 +75,16 @@ async function saveDoc(){
     alert('收據已存檔');
     location.href = '/receipts.html';
   }catch(err){
+    const msg = String(err.message || '');
+    if (msg.includes('quote_already_has_receipt')) return alert('此報價單已開立過收據，為避免重覆項目，請改選其他報價單。');
+    if (msg.includes('amount_exceeds_quote_total')) return alert('本次收款不可大於報價總額。');
+    if (msg.includes('amount_required')) return alert('請輸入有效收款金額。');
     alert('收據存檔失敗：' + err.message);
   }
 }
 
 async function loadDoc(){
-  quotes = await API.listQuotes();
-  quote_id.innerHTML = '<option value="">請選擇報價單</option>' + quotes.map(q=>`<option value="${q.id}">${q.quote_no || ''}｜${q.project_name || ''}</option>`).join('');
+  await loadQuotes();
   if(state.id){
     const d = await API.getReceipt(state.id);
     receipt_no.value = d.receipt_no || '';
@@ -98,26 +100,27 @@ async function loadDoc(){
     const next = await API.nextNo('receipt');
     receipt_no.value = next.doc_no || '';
     receipt_date.value = today();
+    resetSummary();
+    renderPreview();
   }
-  renderPreview();
 }
 
 document.getElementById('app').innerHTML = shell('資料建立 / 收據 / 新增', `
 <div class="form-wrap">
   <div class="form-topbar">
-    <div class="form-brand"><h1>昱拓弱電有限公司｜V3.14.6A 收據商用版</h1><p>資料建立 / 收據 / 新增</p></div>
+    <div class="form-brand"><h1>昱拓弱電有限公司｜V3.14.6A 收據修正版</h1><p>資料建立 / 收據 / 新增</p></div>
     <div class="form-actions no-print"><button onclick="saveDoc()">存檔</button><button class="light" onclick="renderPreview()">更新預覽</button></div>
   </div>
   <div class="form-grid">
     <div class="form-panel">
       <div class="form-row"><div><label>收據編號</label><input id="receipt_no" readonly></div><div><label>收據日期</label><input id="receipt_date" type="date" oninput="renderPreview()"></div></div>
-      <label>報價單</label><select id="quote_id" onchange="bindSummary(this.value); renderPreview()"></select>
+      <label>報價單下拉選單</label><select id="quote_id" onchange="bindSummary(this.value)"></select>
       <div class="form-row"><div><label>報價單號</label><input id="quote_no" readonly></div><div><label>客戶名稱</label><input id="client_name" readonly></div></div>
       <label>工程名稱</label><input id="project_name" readonly>
+      <div class="form-row"><div><label>報價總額</label><input id="quote_total" readonly></div><div><label>本次收款</label><input id="amount_received" type="number" oninput="renderPreview()"></div></div>
       <div class="form-row-3"><div><label>收款類型</label><select id="receipt_type" onchange="renderPreview()"><option>訂金</option><option>中期款</option><option>尾款</option><option selected>部分收款</option><option>暫收款</option></select></div><div><label>收款方式</label><select id="payment_method" onchange="renderPreview()"><option>現金</option><option>匯款</option><option>支票</option><option>其他</option></select></div><div><label>款項狀態</label><select id="payment_status" onchange="renderPreview()"><option selected>已收訖</option><option>待兌現</option><option>待入帳</option></select></div></div>
-      <div class="form-row-3"><div><label>報價總額</label><input id="quote_total" readonly></div><div><label>本次收款</label><input id="amount_received" type="number" oninput="onAmountChange()"></div><div><label>累計已收</label><input id="received_total_after" readonly></div></div>
-      <div class="form-row"><div><label>剩餘未收</label><input id="remaining_balance" readonly></div></div>
       <label>備註</label><textarea id="note" oninput="renderPreview()"></textarea>
+      <div class="small-note">說明：已經開立過收據的報價單，下一張收據將不再顯示，避免重覆項目。</div>
     </div>
     <div class="form-preview" id="preview"></div>
   </div>
