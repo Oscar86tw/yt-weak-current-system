@@ -232,3 +232,35 @@
 
 .doc-block{margin-top:14px;line-height:1.8}
 .print-sheet{background:#fff;border:1px solid #dbe4f0;border-radius:18px;padding:18px}
+
+
+.pdf-like{background:#fff}
+.pdf-sheet{background:#fff;color:#111;padding:22px;border:1px solid #d6dbe5}
+.pdf-title{font-size:28px;font-weight:700;text-align:center;letter-spacing:2px;margin-bottom:8px}
+.pdf-company{text-align:center;font-size:18px;font-weight:700;margin-bottom:12px}
+.pdf-section{font-size:16px;font-weight:700;margin:4px 0}
+.pdf-header-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;margin:12px 0;font-size:14px}
+.pdf-quote-box{border:1px solid #111;padding:10px 12px;margin-bottom:12px;font-size:14px;line-height:1.8}
+.money-line strong{font-size:16px}
+.pdf-table{width:100%;border-collapse:collapse;margin-top:10px}
+.pdf-table th,.pdf-table td{border:1px solid #111;padding:8px 8px;vertical-align:top;font-size:13px;line-height:1.6}
+.pdf-terms-title{margin-top:12px;border:1px solid #111;border-bottom:none;padding:8px 10px;font-weight:700}
+.pdf-terms{border:1px solid #111;padding:10px;min-height:120px;line-height:1.9;font-size:13px}
+.pdf-sign-grid{display:grid;grid-template-columns:1fr 1fr;border-left:1px solid #111;border-right:1px solid #111;border-bottom:1px solid #111}
+.pdf-sign-box{min-height:320px;padding:12px;border-right:1px solid #111;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;text-align:center}
+.pdf-sign-box:last-child{border-right:none}
+.sign-company-title{font-size:18px;font-weight:700;margin-bottom:auto;padding-top:24px}
+.sign-space{flex:1;width:100%}
+.pdf-approval{margin-top:14px;padding:10px;border:1px dashed #94a3b8;background:#f8fafc;font-size:13px;line-height:1.8}
+@media print{
+  @page{size:A4 portrait;margin:8mm}
+  .no-print, .shell-side, .shell-header, .sidebar, nav, header, aside{display:none !important}
+  #app,.form-wrap,.form-grid,.form-panel{all:unset}
+  .form-preview{display:block !important;width:100% !important}
+  .pdf-sheet{border:none;padding:0}
+  .pdf-title{font-size:24px}
+  .pdf-company{font-size:16px}
+  .pdf-section{font-size:14px}
+  .pdf-header-grid,.pdf-quote-box,.pdf-table th,.pdf-table td,.pdf-terms,.pdf-approval{font-size:12px}
+  .pdf-sign-box{min-height:260px}
+}

@@ -1,32 +1,42 @@
-<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>維護保養報價單｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/css/forms-template.css"></head><body><div id="app"></div><script src="/js/common.js"></script><script>
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>弱電系統維護保養報價單｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/css/forms-template.css"></head><body><div id="app"></div><script src="/js/common.js"></script><script>
 document.getElementById('app').innerHTML = shell('資料建立 / 維護保養報價單 / 新增', `<div class="form-wrap">
   <div class="form-topbar">
     <div class="form-brand">
-      <h1>昱拓弱電有限公司｜V3.14.6A 維護保養報價單獨立版</h1>
+      <h1>昱拓弱電有限公司｜V3.14.6A 維護保養報價單 PDF排版版</h1>
       <p>資料建立 / 維護保養報價單 / 新增</p>
     </div>
     <div class="form-actions no-print" id="topActions"></div>
   </div>
   <div class="form-grid">
     <div class="form-panel" id="leftPanel"></div>
-    <div class="form-preview" id="preview"></div>
+    <div class="form-preview pdf-like" id="preview"></div>
   </div>
 </div>`);
 
 const state = { id: qs('id') || '' };
 let clients = [];
 
-
 function today(){ return new Date().toISOString().slice(0,10); }
-function exportState(){ const blob = new Blob([JSON.stringify(collect(), null, 2)], {type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='maintenance-contract-form.json'; a.click(); }
+function exportState(){ const blob = new Blob([JSON.stringify(collect(), null, 2)], {type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='maintenance-quotation-form.json'; a.click(); }
 function importState(el){ const f=el.files&&el.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ window._formLoad=JSON.parse(r.result); renderForm(); renderPreview(); }; r.readAsText(f,'utf-8'); }
 
+function defaultItems(){
+  return `1|門禁管制系統|讀卡機感應測試與清潔\n電鎖吸力測試與校正\n外出開關接點檢測\n門禁軟體連線狀態檢查與備份\n緊急開門按鈕測試| | |
+2|對講機系統|門口機影像與通話測試\n室內機訊號傳輸檢測\n管理室總機呼叫迴路測試\n電源供應器電壓檢測\n線路端子鎖固檢查| | |
+3|數位監視系統|攝影機鏡頭清潔與角度調整\nDVR/NVR 主機錄影回放測試\n硬碟健康狀態掃描\n變壓器供電檢測| | |
+4|車道停管系統|柵欄機升降動作測試與潤滑\neTag/車牌辨識讀取率測試\n感應線圈/紅外線防壓裝置測試\n號誌燈與顯示屏功能檢查\n手動/自動切換功能測試| | |
+5|BA中央監控系統|圖控電腦運作狀態檢查\n各類感知器(水位/照明/排風)訊號測試\nDDC控制器通訊測試\n歷史警報紀錄分析\n系統備用電源測試| | |
+6|共同天線系統|數位電視訊號強度db值檢測\n放大器增益調整\n分配器與線路接點檢查\n頂樓天線固定架構檢查| | |
+7|故障叫修服務|經業主電話通知後，將於隔日(上班日)到達| | |`;
+}
+
 function defaultTerms(){
-  return `1. 本合約為年度系統維護保養合約，每月執行一次例行性巡檢保養。
-2. 本合約僅包含定期保養檢測工資；如檢測發現設備故障需更換耗材或零件，材料費另行報價。
-3. 合約期間內享有叫修優先服務權，緊急叫修回應時間以雙方約定或實際可進場時間為準。
-4. 保養完成並交付保養報告書後，請於次月10日前以匯款或支票支付。
-5. 施工或維護期間，請業主協助配合進出管制與電源開關事宜。`;
+  return `合約期限：本合約為年度保養合約，每月執行一次例行性巡檢保養（依雙方議定為準）。
+維修更換：本報價僅包含定期保養檢測工資，若檢測發現設備故障需更換耗材或零件，材料費另行報價。
+緊急叫修：合約期間內享有叫修優先服務權，緊急叫修回應時間為 6 小時內。
+付款方式：保養完成並交付保養報告書後，請於次月 10 日前以匯款或支票支付。
+匯款資訊：昱拓弱電有限公司 / 銀行代碼：
+工作配合：施工期間請貴單位協助配合進出管制與電源開關事宜。`;
 }
 
 function collect(){
@@ -34,10 +44,18 @@ function collect(){
     doc_no: doc_no.value,
     doc_date: doc_date.value,
     client_id: client_id.value || null,
+    contact_person: contact_person.value,
+    address: address.value,
+    phone: phone.value,
+    valid_days: valid_days.value,
     contract_name: contract_name.value,
-    scope: scope.value,
+    site_name: site_name.value,
+    inspect_date: inspect_date.value,
     frequency: frequency.value,
-    amount: Number(amount.value||0),
+    subtotal: Number(subtotal.value||0),
+    tax: Number(tax.value||0),
+    total: Number(total.value||0),
+    items_text: items_text.value,
     terms: terms.value,
     approval_note: approval_note.value,
     customer_agreed: customer_agreed.checked ? 'Y' : 'N'
@@ -49,89 +67,169 @@ function bindBase(){
   doc_no.value = d.doc_no || '';
   doc_date.value = d.doc_date || today();
   client_id.value = d.client_id ? String(d.client_id) : '';
-  contract_name.value = d.contract_name || '';
-  scope.value = d.scope || '';
+  contact_person.value = d.contact_person || '總幹事';
+  address.value = d.address || '';
+  phone.value = d.phone || '';
+  valid_days.value = d.valid_days || '30';
+  contract_name.value = d.contract_name || '弱電系統維護保養 報價單';
+  site_name.value = d.site_name || '';
+  inspect_date.value = d.inspect_date || '';
   frequency.value = d.frequency || '每月設備檢測 1 次';
-  amount.value = d.amount || 0;
+  subtotal.value = d.subtotal || 4280;
+  tax.value = d.tax || 214;
+  total.value = d.total || 4494;
+  items_text.value = d.items_text || defaultItems();
   terms.value = d.terms || defaultTerms();
-  approval_note.value = d.approval_note || '';
+  approval_note.value = d.approval_note || '本單為維護保養專用之獨立報價單；如業主確認同意後，再另行建立正式維護合約單。';
+  customer_agreed.checked = d.customer_agreed === 'Y';
 }
 
-function fillTemplate(){
-  if(!scope.value.trim()){
-    scope.value = `一、公設弱電設備定期檢測維護
-二、維護項目：
-1. 門禁管制系統
-2. 對講機系統
-3. 數位監視系統
-4. 車道停管系統
-5. BA中央監控系統
-6. 共同天線系統`;
-  }
-  if(!contract_name.value.trim()){
-    contract_name.value = '弱電系統維護保養報價單';
-  }
-  if(!approval_note.value.trim()){
-    approval_note.value = '本單為維護保養專用之獨立報價單；如業主確認同意後，再另行建立正式維護合約單。';
-  }
+function fillClient(){
+  const c = clients.find(x => String(x.id) === String(client_id.value));
+  if(!c) return;
+  address.value = c.address || '';
+  phone.value = c.phone || '';
   renderPreview();
 }
 
-function renderForm(){
-  topActions.innerHTML=`<button id="btn-save" onclick="saveDoc()">儲存到系統</button><button id="btn-print" class="secondary" onclick="window.print()">重新列印</button><button id="btn-back" class="light" onclick="location.href='/contracts_history.html'">返回清單</button><button id="btn-export" class="light" onclick="exportState()">匯出資料</button><label id="btn-import-wrap" class="light" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">匯入資料<input type="file" accept=".json" style="display:none" onchange="importState(this)"></label><button id="btn-clear" class="light" onclick="clearForm()">清空</button>`;
+function parseItems(raw){
+  return (raw || '').split(/\n(?=\d+\|)/).map(row => {
+    const parts = row.split('|');
+    return {
+      no: parts[0] || '',
+      category: parts[1] || '',
+      spec: parts[2] || '',
+      check: parts[3] || '',
+      status: parts[4] || '',
+      note: parts[5] || ''
+    };
+  }).filter(x => x.no || x.category || x.spec);
+}
 
+function renderForm(){
+  topActions.innerHTML=`<button onclick="saveDoc()">儲存到系統</button><button class="secondary" onclick="window.print()">列印 / 另存 PDF</button><button class="light" onclick="exportState()">匯出資料</button><label class="light" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">匯入資料<input type="file" accept=".json" style="display:none" onchange="importState(this)"></label><button class="light" onclick="clearForm()">清空</button>`;
   leftPanel.innerHTML=`<div class="form-section-title">基本資料</div>
 <label>單號</label><input id="doc_no">
-<div class="form-row"><div><label>日期</label><input id="doc_date" type="date"></div><div><label>客戶</label><select id="client_id"><option value="">請選擇客戶</option>${clients.map(c=>`<option value="${c.id}">${c.client_name}</option>`).join('')}</select></div></div>
-<label>報價名稱</label><input id="contract_name" placeholder="例如：弱電系統維護保養報價單">
-<label>維護範圍</label><textarea id="scope" rows="8"></textarea>
-<div class="form-row"><div><label>維護頻率</label><input id="frequency" placeholder="例如：每月設備檢測 1 次"></div><div><label>報價金額</label><input id="amount" type="number"></div></div>
-<label>簽呈</label><textarea id="approval_note" rows="4" placeholder="內部簽呈或業主同意後續簽約說明"></textarea>
-<div class="form-row"><div><label style="display:flex;align-items:center;gap:8px;"><input id="customer_agreed" type="checkbox"> 業主已同意，可後續簽正式合約</label></div><div><button type="button" class="light" onclick="fillTemplate()">帶入維護保養範本</button></div></div>
-<label>報價條款</label><textarea id="terms" rows="8"></textarea>
-<div class="hint">這是維護保養專用的獨立報價單，與一般報價單不關聯。只有客戶同意後，才再建立後續正式合約單。</div>
-<div id="lock-tip" class="hint" style="margin-top:10px;display:none;background:#eef6ff;border:1px solid #bfdbfe;color:#1e3a8a;">本筆維護保養報價單已存檔，欄位已自動鎖定。此頁僅保留重新列印與返回清單功能。</div>`;
-
+<div class="form-row"><div><label>報價日期</label><input id="doc_date" type="date"></div><div><label>客戶名稱</label><select id="client_id"><option value="">請選擇客戶</option>${clients.map(c=>`<option value="${c.id}">${c.client_name}</option>`).join('')}</select></div></div>
+<div class="form-row"><div><label>聯絡人</label><input id="contact_person"></div><div><label>電話</label><input id="phone"></div></div>
+<label>地址</label><input id="address">
+<div class="form-row"><div><label>有效期限（天）</label><input id="valid_days" type="number"></div><div><label>工程案名</label><input id="site_name"></div></div>
+<div class="form-row"><div><label>點檢日期</label><input id="inspect_date" type="date"></div><div><label>維護頻率</label><input id="frequency"></div></div>
+<div class="form-row"><div><label>未稅金額</label><input id="subtotal" type="number"></div><div><label>營業稅</label><input id="tax" type="number"></div></div>
+<div class="form-row"><div><label>含稅總額</label><input id="total" type="number"></div><div><label style="display:flex;align-items:center;gap:8px;margin-top:30px;"><input id="customer_agreed" type="checkbox"> 客戶已同意，可後續簽正式合約</label></div></div>
+<label>點檢項目（格式：編號|系統類別|規格摘要|點檢|狀況|備註）</label><textarea id="items_text" rows="16"></textarea>
+<label>報價條款與備註</label><textarea id="terms" rows="8"></textarea>
+<label>簽呈</label><textarea id="approval_note" rows="4"></textarea>
+<div class="hint">這版排版依你提供的 PDF 轉成系統頁面，維持相近結構與列印樣式。此單為維護保養報價單，獨立於一般工程報價單之外。</div>`;
   bindBase();
-  ['doc_no','doc_date','client_id','contract_name','scope','frequency','amount','terms','approval_note','customer_agreed'].forEach(id=>{
+  ['doc_no','doc_date','client_id','contact_person','address','phone','valid_days','site_name','inspect_date','frequency','subtotal','tax','total','items_text','terms','approval_note','customer_agreed'].forEach(id=>{
     document.getElementById(id).addEventListener('input', renderPreview);
     document.getElementById(id).addEventListener('change', renderPreview);
   });
+  document.getElementById('client_id').addEventListener('change', fillClient);
   renderPreview();
 }
 
 function renderPreview(){
-  const d=collect();
-  const c=clients.find(x=>String(x.id)===String(d.client_id));
-  
-  preview.innerHTML=`
-<div class="doc-head"><div><h2>昱拓弱電有限公司</h2><div class="doc-sub">弱電系統維護保養合約書<br>電話：0960-770-512<br>地址：桃園市中壢區榮安一街490號13樓</div></div>
-<div class="doc-sub" style="text-align:right;"><strong style="font-size:20px;color:#111827;">維護保養報價單</strong><br><br>單號：${d.doc_no || '＿＿＿＿'}<br>日期：${d.doc_date || '＿＿＿＿'}<br>客戶：${c?.client_name || '＿＿＿＿'}<br>客戶狀態：${d.customer_agreed==='Y' ? '已同意，可後續簽約' : '尚未簽正式合約'}</div></div>
-<div class="block"><h3>合約名稱</h3><p>${d.contract_name || '—'}</p></div>
-<div class="block"><h3>維護範圍</h3><p>${(d.scope||'—').replace(/\n/g,'<br>')}</p></div>
-<div class="block"><h3>維護頻率與金額</h3><p>維護頻率：${d.frequency || '—'}<br>合約金額：NT$ ${Number(d.amount||0).toLocaleString('zh-TW')}</p></div>
-<div class="block"><h3>簽呈</h3><p>${(d.approval_note||'—').replace(/\n/g,'<br>')}</p></div>
-<div class="block"><h3>後續簽約狀態</h3><p>${d.customer_agreed==='Y' ? '業主已同意，可後續建立正式維護合約單。' : '本單為獨立維護保養報價單，尚未進入正式合約階段。'}</p></div>
-<div class="block"><h3>報價條款</h3><ol>${(d.terms||'').split(/\n+/).filter(Boolean).map(x=>`<li>${x.replace(/^\d+\./,'').trim()}</li>`).join('')}</ol></div>
-<div class="sign-grid"><div class="sign-box">客戶簽章：</div><div class="sign-box">公司簽章：</div></div><div class="footer-note">維護保養報價單列印版</div>`;
+  const d = collect();
+  const c = clients.find(x => String(x.id) === String(d.client_id));
+  const items = parseItems(d.items_text);
+  preview.innerHTML = `
+  <div class="pdf-sheet">
+    <div class="pdf-title">弱電系統維護保養 報價單</div>
+    <div class="pdf-company">昱拓弱電有限公司</div>
+    <div class="pdf-section">一、 公設弱電設備定期檢測維護</div>
+    <div class="pdf-section">二、 總結報價</div>
+
+    <div class="pdf-header-grid">
+      <div>客戶名稱： ${c?.client_name || ''}</div>
+      <div>聯絡人： ${d.contact_person || ''}</div>
+      <div>地址： ${d.address || ''}</div>
+      <div>電話： ${d.phone || ''}</div>
+      <div>報價日期： ${d.doc_date || ''}</div>
+      <div>有效期限： ${d.valid_days || ''}天</div>
+    </div>
+
+    <div class="pdf-quote-box">
+      <div>昱拓弱電有限公司 - 弱電系統完工點檢清單</div>
+      <div>330桃園市桃園區文中二路71號</div>
+      <div class="money-line">本案總計金額 (不含稅)： <strong>NT$ ${money(d.subtotal || 0)} 元</strong></div>
+      <div class="money-line">營業稅 (5%)： <strong>NT$ ${money(d.tax || 0)} 元</strong></div>
+      <div class="money-line">總計應付金額 (含稅)： <strong>NT$ ${money(d.total || 0)} 元</strong></div>
+      <div class="money-line">工程案名： ${d.site_name || '____________________'}</div>
+      <div class="money-line">點檢日期： ${d.inspect_date || '____年____月____日'}</div>
+      <div class="money-line">${d.frequency || ''}</div>
+    </div>
+
+    <table class="pdf-table">
+      <thead>
+        <tr>
+          <th style="width:6%">項目</th>
+          <th style="width:18%">系統類別</th>
+          <th>規格摘要</th>
+          <th style="width:10%">點檢</th>
+          <th style="width:10%">狀況</th>
+          <th style="width:12%">備註</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${items.map(r => `<tr>
+          <td>${r.no}</td>
+          <td>${r.category}</td>
+          <td>${(r.spec || '').replace(/\n/g,'<br>')}</td>
+          <td>${r.check || ''}</td>
+          <td>${r.status || ''}</td>
+          <td>${r.note || ''}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+
+    <div class="pdf-terms-title">報價條款與備註</div>
+    <div class="pdf-terms">${(d.terms || '').replace(/\n/g,'<br>')}</div>
+
+    <div class="pdf-sign-grid">
+      <div class="pdf-sign-box">
+        <div class="sign-company-title">客戶簽署確認</div>
+        <div class="sign-space"></div>
+        <div>____________________</div>
+        <div>(簽章)</div>
+        <div>日期：_____年_____月_____日</div>
+      </div>
+      <div class="pdf-sign-box">
+        <div class="sign-company-title">昱拓弱電有限公司</div>
+        <div class="sign-space"></div>
+        <div>____________________</div>
+        <div>(公司印鑑)</div>
+        <div>統一編號：</div>
+        <div>聯絡地址：中壢市榮安一街490號13樓</div>
+      </div>
+    </div>
+
+    <div class="pdf-approval">
+      <strong>簽呈：</strong><br>${(d.approval_note || '—').replace(/\n/g,'<br>')}
+      <br><br><strong>後續簽約狀態：</strong>${d.customer_agreed === 'Y' ? '客戶已同意，可後續簽正式維護合約單。' : '本單僅為維護保養報價單，尚未進入正式合約階段。'}
+    </div>
+  </div>`;
 }
 
 async function saveDoc(){
-  const d=collect();
+  const d = collect();
   if(!d.client_id) return alert('請選擇客戶');
   let r;
-  if(state.id) r=await API.updateContract(state.id,d);
-  else r=await API.createContract(d);
+  if(state.id) r = await API.updateContract(state.id, d);
+  else r = await API.createContract(d);
   if(r.id){
     alert('維護保養報價單已存檔，將自動跳轉正式列印頁。');
-    location.href='/contracts.html?id='+r.id+'&autoprint=1&locked=1';
+    location.href = '/contracts.html?id=' + r.id + '&autoprint=1&locked=1';
     return;
   }
   alert('維護保養報價單已存檔');
 }
+
 function clearForm(){ window._formLoad = {}; renderForm(); }
+
 function lockSavedForm(){
-  ['doc_date','client_id','quote_id','contract_name','scope','frequency','amount','terms','approval_note'].forEach(id=>{
+  ['doc_date','client_id','contact_person','address','phone','valid_days','site_name','inspect_date','frequency','subtotal','tax','total','items_text','terms','approval_note','customer_agreed'].forEach(id=>{
     const el=document.getElementById(id);
     if(!el) return;
     el.disabled=true;
@@ -139,32 +237,22 @@ function lockSavedForm(){
     el.style.background='#f5f7fb';
     el.style.cursor='not-allowed';
   });
-  ['btn-save','btn-export','btn-clear','btn-import-wrap'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.style.display='none';
-  });
+  const btns=['btn-save','btn-export','btn-clear','btn-import-wrap'];
+  btns.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
   const tip=document.getElementById('lock-tip');
   if(tip) tip.style.display='block';
 }
 
-
 (async()=>{
-  clients=await API.getClients();
-  const next=await API.nextNo('contract');
-  window._formLoad={doc_no:next.doc_no,doc_date:today(),amount:0};
+  clients = await API.getClients();
+  const next = await API.nextNo('contract');
+  window._formLoad = {doc_no:next.doc_no, doc_date:today()};
   if(state.id){
-    const d=await API.getContract(state.id);
-    window._formLoad=d;
+    const d = await API.getContract(state.id);
+    window._formLoad = d;
   }
   renderForm();
-  if (window._formLoad && window._formLoad.customer_agreed === 'Y') {
-    const el = document.getElementById('customer_agreed');
-    if (el) el.checked = true;
-  }
-  renderPreview();
   if ((qs('locked') || '') === '1') lockSavedForm();
-  if ((qs('autoprint') || '') === '1') {
-    setTimeout(()=>window.print(), 500);
-  }
+  if ((qs('autoprint') || '') === '1') setTimeout(()=>window.print(), 500);
 })();
 </script></body></html>
