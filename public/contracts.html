@@ -2,7 +2,7 @@
 document.getElementById('app').innerHTML = shell('資料建立 / 維護保養報價單 / 新增', `<div class="form-wrap">
   <div class="form-topbar">
     <div class="form-brand">
-      <h1>昱拓弱電有限公司｜V3.14.6A 維護保養報價單 PDF排版版</h1>
+      <h1>昱拓弱電有限公司｜V3.14.6A 維護保養報價單 PDF排版修正版</h1>
       <p>資料建立 / 維護保養報價單 / 新增</p>
     </div>
     <div class="form-actions no-print" id="topActions"></div>
@@ -15,6 +15,7 @@ document.getElementById('app').innerHTML = shell('資料建立 / 維護保養報
 
 const state = { id: qs('id') || '' };
 let clients = [];
+let refs = {};
 
 function today(){ return new Date().toISOString().slice(0,10); }
 function exportState(){ const blob = new Blob([JSON.stringify(collect(), null, 2)], {type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='maintenance-quotation-form.json'; a.click(); }
@@ -29,7 +30,6 @@ function defaultItems(){
 6|共同天線系統|數位電視訊號強度db值檢測\n放大器增益調整\n分配器與線路接點檢查\n頂樓天線固定架構檢查| | |
 7|故障叫修服務|經業主電話通知後，將於隔日(上班日)到達| | |`;
 }
-
 function defaultTerms(){
   return `合約期限：本合約為年度保養合約，每月執行一次例行性巡檢保養（依雙方議定為準）。
 維修更換：本報價僅包含定期保養檢測工資，若檢測發現設備故障需更換耗材或零件，材料費另行報價。
@@ -38,77 +38,73 @@ function defaultTerms(){
 匯款資訊：昱拓弱電有限公司 / 銀行代碼：
 工作配合：施工期間請貴單位協助配合進出管制與電源開關事宜。`;
 }
-
-function collect(){
-  return {
-    doc_no: doc_no.value,
-    doc_date: doc_date.value,
-    client_id: client_id.value || null,
-    contact_person: contact_person.value,
-    address: address.value,
-    phone: phone.value,
-    valid_days: valid_days.value,
-    contract_name: contract_name.value,
-    site_name: site_name.value,
-    inspect_date: inspect_date.value,
-    frequency: frequency.value,
-    subtotal: Number(subtotal.value||0),
-    tax: Number(tax.value||0),
-    total: Number(total.value||0),
-    items_text: items_text.value,
-    terms: terms.value,
-    approval_note: approval_note.value,
-    customer_agreed: customer_agreed.checked ? 'Y' : 'N'
-  };
-}
-
-function bindBase(){
-  const d = window._formLoad || {};
-  doc_no.value = d.doc_no || '';
-  doc_date.value = d.doc_date || today();
-  client_id.value = d.client_id ? String(d.client_id) : '';
-  contact_person.value = d.contact_person || '總幹事';
-  address.value = d.address || '';
-  phone.value = d.phone || '';
-  valid_days.value = d.valid_days || '30';
-  contract_name.value = d.contract_name || '弱電系統維護保養 報價單';
-  site_name.value = d.site_name || '';
-  inspect_date.value = d.inspect_date || '';
-  frequency.value = d.frequency || '每月設備檢測 1 次';
-  subtotal.value = d.subtotal || 4280;
-  tax.value = d.tax || 214;
-  total.value = d.total || 4494;
-  items_text.value = d.items_text || defaultItems();
-  terms.value = d.terms || defaultTerms();
-  approval_note.value = d.approval_note || '本單為維護保養專用之獨立報價單；如業主確認同意後，再另行建立正式維護合約單。';
-  customer_agreed.checked = d.customer_agreed === 'Y';
-}
-
-function fillClient(){
-  const c = clients.find(x => String(x.id) === String(client_id.value));
-  if(!c) return;
-  address.value = c.address || '';
-  phone.value = c.phone || '';
-  renderPreview();
-}
-
 function parseItems(raw){
   return (raw || '').split(/\n(?=\d+\|)/).map(row => {
     const parts = row.split('|');
-    return {
-      no: parts[0] || '',
-      category: parts[1] || '',
-      spec: parts[2] || '',
-      check: parts[3] || '',
-      status: parts[4] || '',
-      note: parts[5] || ''
-    };
+    return { no: parts[0]||'', category: parts[1]||'', spec: parts[2]||'', check: parts[3]||'', status: parts[4]||'', note: parts[5]||'' };
   }).filter(x => x.no || x.category || x.spec);
 }
-
+function getClient(){
+  return clients.find(x => String(x.id) === String(refs.client_id.value));
+}
+function collect(){
+  return {
+    doc_no: refs.doc_no.value,
+    doc_date: refs.doc_date.value,
+    client_id: refs.client_id.value || null,
+    contact_person: refs.contact_person.value,
+    address: refs.address.value,
+    phone: refs.phone.value,
+    valid_days: refs.valid_days.value,
+    contract_name: refs.contract_name.value,
+    site_name: refs.site_name.value,
+    inspect_date: refs.inspect_date.value,
+    frequency: refs.frequency.value,
+    subtotal: Number(refs.subtotal.value||0),
+    tax: Number(refs.tax.value||0),
+    amount: Number(refs.total.value||0),
+    total: Number(refs.total.value||0),
+    items_text: refs.items_text.value,
+    terms: refs.terms.value,
+    approval_note: refs.approval_note.value,
+    customer_agreed: refs.customer_agreed.checked ? 'Y' : 'N',
+    contract_kind: 'maintenance_quote'
+  };
+}
+function bindBase(){
+  const d = window._formLoad || {};
+  refs.doc_no.value = d.doc_no || '';
+  refs.doc_date.value = d.doc_date || today();
+  refs.client_id.value = d.client_id ? String(d.client_id) : '';
+  refs.contact_person.value = d.contact_person || '總幹事';
+  refs.address.value = d.address || '';
+  refs.phone.value = d.phone || '';
+  refs.valid_days.value = d.valid_days || '30';
+  refs.contract_name.value = d.contract_name || '弱電系統維護保養 報價單';
+  refs.site_name.value = d.site_name || '';
+  refs.inspect_date.value = d.inspect_date || '';
+  refs.frequency.value = d.frequency || '每月設備檢測 1 次';
+  refs.subtotal.value = d.subtotal || 4280;
+  refs.tax.value = d.tax || 214;
+  refs.total.value = d.total || d.amount || 4494;
+  refs.items_text.value = d.items_text || defaultItems();
+  refs.terms.value = d.terms || defaultTerms();
+  refs.approval_note.value = d.approval_note || '本單為維護保養專用之獨立報價單；如業主確認同意後，再另行建立正式維護合約單。';
+  refs.customer_agreed.checked = d.customer_agreed === 'Y';
+}
+function fillClient(){
+  const c = getClient();
+  if(!c) return;
+  refs.address.value = c.address || '';
+  refs.phone.value = c.phone || '';
+  renderPreview();
+}
+function initRefs(){
+  ['doc_no','doc_date','client_id','contact_person','address','phone','valid_days','contract_name','site_name','inspect_date','frequency','subtotal','tax','total','items_text','terms','approval_note','customer_agreed'].forEach(id => refs[id] = document.getElementById(id));
+}
 function renderForm(){
-  topActions.innerHTML=`<button onclick="saveDoc()">儲存到系統</button><button class="secondary" onclick="window.print()">列印 / 另存 PDF</button><button class="light" onclick="exportState()">匯出資料</button><label class="light" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">匯入資料<input type="file" accept=".json" style="display:none" onchange="importState(this)"></label><button class="light" onclick="clearForm()">清空</button>`;
-  leftPanel.innerHTML=`<div class="form-section-title">基本資料</div>
+  topActions.innerHTML = `<button onclick="saveDoc()" id="btn-save">儲存到系統</button><button class="secondary" onclick="window.print()">列印 / 另存 PDF</button><button class="light" onclick="exportState()">匯出資料</button><label class="light" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">匯入資料<input type="file" accept=".json" style="display:none" onchange="importState(this)"></label><button class="light" onclick="clearForm()">清空</button><button class="light" onclick="goFormalContract()">一鍵轉正式維護合約單</button>`;
+  leftPanel.innerHTML = `<div class="form-section-title">基本資料</div>
 <label>單號</label><input id="doc_no">
 <div class="form-row"><div><label>報價日期</label><input id="doc_date" type="date"></div><div><label>客戶名稱</label><select id="client_id"><option value="">請選擇客戶</option>${clients.map(c=>`<option value="${c.id}">${c.client_name}</option>`).join('')}</select></div></div>
 <div class="form-row"><div><label>聯絡人</label><input id="contact_person"></div><div><label>電話</label><input id="phone"></div></div>
@@ -120,27 +116,26 @@ function renderForm(){
 <label>點檢項目（格式：編號|系統類別|規格摘要|點檢|狀況|備註）</label><textarea id="items_text" rows="16"></textarea>
 <label>報價條款與備註</label><textarea id="terms" rows="8"></textarea>
 <label>簽呈</label><textarea id="approval_note" rows="4"></textarea>
-<div class="hint">這版排版依你提供的 PDF 轉成系統頁面，維持相近結構與列印樣式。此單為維護保養報價單，獨立於一般工程報價單之外。</div>`;
+<div class="hint" id="lock-tip" style="display:none;background:#eef6ff;border:1px solid #bfdbfe;color:#1e3a8a;">本筆維護保養報價單已存檔，欄位已自動鎖定。此頁僅保留重新列印、返回清單與一鍵轉正式維護合約單功能。</div>
+<div class="hint">右側會即時顯示 PDF 排版預覽。這是維護保養報價單，獨立於一般工程報價單之外。</div>`;
+  initRefs();
   bindBase();
-  ['doc_no','doc_date','client_id','contact_person','address','phone','valid_days','site_name','inspect_date','frequency','subtotal','tax','total','items_text','terms','approval_note','customer_agreed'].forEach(id=>{
-    document.getElementById(id).addEventListener('input', renderPreview);
-    document.getElementById(id).addEventListener('change', renderPreview);
+  Object.values(refs).forEach(el => {
+    const evt = el.type === 'checkbox' || el.tagName === 'SELECT' ? 'change' : 'input';
+    el.addEventListener(evt, renderPreview);
   });
-  document.getElementById('client_id').addEventListener('change', fillClient);
+  refs.client_id.addEventListener('change', fillClient);
   renderPreview();
 }
-
 function renderPreview(){
   const d = collect();
-  const c = clients.find(x => String(x.id) === String(d.client_id));
+  const c = getClient();
   const items = parseItems(d.items_text);
-  preview.innerHTML = `
-  <div class="pdf-sheet">
+  document.getElementById('preview').innerHTML = `<div class="pdf-sheet">
     <div class="pdf-title">弱電系統維護保養 報價單</div>
     <div class="pdf-company">昱拓弱電有限公司</div>
     <div class="pdf-section">一、 公設弱電設備定期檢測維護</div>
     <div class="pdf-section">二、 總結報價</div>
-
     <div class="pdf-header-grid">
       <div>客戶名稱： ${c?.client_name || ''}</div>
       <div>聯絡人： ${d.contact_person || ''}</div>
@@ -149,7 +144,6 @@ function renderPreview(){
       <div>報價日期： ${d.doc_date || ''}</div>
       <div>有效期限： ${d.valid_days || ''}天</div>
     </div>
-
     <div class="pdf-quote-box">
       <div>昱拓弱電有限公司 - 弱電系統完工點檢清單</div>
       <div>330桃園市桃園區文中二路71號</div>
@@ -160,89 +154,41 @@ function renderPreview(){
       <div class="money-line">點檢日期： ${d.inspect_date || '____年____月____日'}</div>
       <div class="money-line">${d.frequency || ''}</div>
     </div>
-
     <table class="pdf-table">
-      <thead>
-        <tr>
-          <th style="width:6%">項目</th>
-          <th style="width:18%">系統類別</th>
-          <th>規格摘要</th>
-          <th style="width:10%">點檢</th>
-          <th style="width:10%">狀況</th>
-          <th style="width:12%">備註</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${items.map(r => `<tr>
-          <td>${r.no}</td>
-          <td>${r.category}</td>
-          <td>${(r.spec || '').replace(/\n/g,'<br>')}</td>
-          <td>${r.check || ''}</td>
-          <td>${r.status || ''}</td>
-          <td>${r.note || ''}</td>
-        </tr>`).join('')}
-      </tbody>
+      <thead><tr><th style="width:6%">項目</th><th style="width:18%">系統類別</th><th>規格摘要</th><th style="width:10%">點檢</th><th style="width:10%">狀況</th><th style="width:12%">備註</th></tr></thead>
+      <tbody>${items.map(r => `<tr><td>${r.no}</td><td>${r.category}</td><td>${(r.spec || '').replace(/\n/g,'<br>')}</td><td>${r.check || ''}</td><td>${r.status || ''}</td><td>${r.note || ''}</td></tr>`).join('')}</tbody>
     </table>
-
     <div class="pdf-terms-title">報價條款與備註</div>
     <div class="pdf-terms">${(d.terms || '').replace(/\n/g,'<br>')}</div>
-
     <div class="pdf-sign-grid">
-      <div class="pdf-sign-box">
-        <div class="sign-company-title">客戶簽署確認</div>
-        <div class="sign-space"></div>
-        <div>____________________</div>
-        <div>(簽章)</div>
-        <div>日期：_____年_____月_____日</div>
-      </div>
-      <div class="pdf-sign-box">
-        <div class="sign-company-title">昱拓弱電有限公司</div>
-        <div class="sign-space"></div>
-        <div>____________________</div>
-        <div>(公司印鑑)</div>
-        <div>統一編號：</div>
-        <div>聯絡地址：中壢市榮安一街490號13樓</div>
-      </div>
+      <div class="pdf-sign-box"><div class="sign-company-title">客戶簽署確認</div><div class="sign-space"></div><div>____________________</div><div>(簽章)</div><div>日期：_____年_____月_____日</div></div>
+      <div class="pdf-sign-box"><div class="sign-company-title">昱拓弱電有限公司</div><div class="sign-space"></div><div>____________________</div><div>(公司印鑑)</div><div>統一編號：</div><div>聯絡地址：中壢市榮安一街490號13樓</div></div>
     </div>
-
-    <div class="pdf-approval">
-      <strong>簽呈：</strong><br>${(d.approval_note || '—').replace(/\n/g,'<br>')}
-      <br><br><strong>後續簽約狀態：</strong>${d.customer_agreed === 'Y' ? '客戶已同意，可後續簽正式維護合約單。' : '本單僅為維護保養報價單，尚未進入正式合約階段。'}
-    </div>
+    <div class="pdf-approval"><strong>簽呈：</strong><br>${(d.approval_note || '—').replace(/\n/g,'<br>')}<br><br><strong>後續簽約狀態：</strong>${d.customer_agreed === 'Y' ? '客戶已同意，可後續簽正式維護合約單。' : '本單僅為維護保養報價單，尚未進入正式合約階段。'}</div>
   </div>`;
 }
-
 async function saveDoc(){
   const d = collect();
   if(!d.client_id) return alert('請選擇客戶');
-  let r;
-  if(state.id) r = await API.updateContract(state.id, d);
-  else r = await API.createContract(d);
+  let r = state.id ? await API.updateContract(state.id, d) : await API.createContract(d);
   if(r.id){
     alert('維護保養報價單已存檔，將自動跳轉正式列印頁。');
     location.href = '/contracts.html?id=' + r.id + '&autoprint=1&locked=1';
-    return;
   }
-  alert('維護保養報價單已存檔');
 }
-
 function clearForm(){ window._formLoad = {}; renderForm(); }
-
 function lockSavedForm(){
   ['doc_date','client_id','contact_person','address','phone','valid_days','site_name','inspect_date','frequency','subtotal','tax','total','items_text','terms','approval_note','customer_agreed'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(!el) return;
-    el.disabled=true;
-    el.readOnly=true;
-    el.style.background='#f5f7fb';
-    el.style.cursor='not-allowed';
+    const el=document.getElementById(id); if(!el) return; el.disabled=true; el.readOnly=true; el.style.background='#f5f7fb'; el.style.cursor='not-allowed';
   });
-  const btns=['btn-save','btn-export','btn-clear','btn-import-wrap'];
-  btns.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
-  const tip=document.getElementById('lock-tip');
-  if(tip) tip.style.display='block';
+  const tip=document.getElementById('lock-tip'); if(tip) tip.style.display='block';
 }
-
+async function goFormalContract(){
+  if(!refs.customer_agreed.checked){ alert('請先勾選「客戶已同意，可後續簽正式合約」。'); return; }
+  const d = collect();
+  localStorage.setItem('maintenance_quote_to_contract', JSON.stringify(d));
+  location.href = '/maintenance_contract_formal.html?fromQuote=1';
+}
 (async()=>{
   clients = await API.getClients();
   const next = await API.nextNo('contract');
