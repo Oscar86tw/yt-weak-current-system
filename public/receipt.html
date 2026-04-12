@@ -17,6 +17,26 @@ function initRefs(){
   preview_el = document.getElementById('preview');
 }
 
+function lockSavedForm(){
+  const ids = ['receipt_date','quote_id','amount_received','payment_method','note'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.disabled = true;
+    el.readOnly = true;
+    el.style.background = '#f5f7fb';
+    el.style.cursor = 'not-allowed';
+  });
+
+  const saveBtn = document.getElementById('btn-save');
+  const previewBtn = document.getElementById('btn-preview');
+  if (saveBtn) saveBtn.style.display = 'none';
+  if (previewBtn) previewBtn.style.display = 'none';
+
+  const lockTip = document.getElementById('lock-tip');
+  if (lockTip) lockTip.style.display = 'block';
+}
+
 function collect(){
   return {
     receipt_no: receipt_no_el.value,
@@ -108,13 +128,19 @@ async function saveDoc(){
     const payload = collect();
     if(!payload.quote_id) return alert('請先選擇報價單');
     if(!payload.amount_received) return alert('請輸入本次收款金額');
-    if(state.id) await API.updateReceipt(state.id, payload);
-    else {
+
+    let savedId = state.id || '';
+    if(state.id){
+      const r = await API.updateReceipt(state.id, payload);
+      savedId = r.id || state.id;
+    } else {
       const r = await API.createReceipt(payload);
-      state.id = r.id || '';
+      savedId = r.id || '';
+      state.id = savedId;
     }
-    alert('收據已存檔');
-    location.href = '/receipts.html';
+
+    alert('收據已存檔，將自動跳轉正式列印頁。');
+    location.href = '/receipt.html?id=' + savedId + '&autoprint=1&locked=1';
   }catch(err){
     const msg = String(err.message || '');
     if (msg.includes('quote_already_has_receipt')) return alert('此報價單已開立過收據，為避免重覆項目，請改選其他報價單。');
@@ -135,6 +161,9 @@ async function loadDoc(){
     amount_received_el.value = d.amount_received || 0;
     note_el.value = d.note || '';
     await bindSummary(quote_id_el.value);
+    if ((qs('locked') || '') === '1') {
+      lockSavedForm();
+    }
   } else {
     const next = await API.nextNo('receipt');
     receipt_no_el.value = next.doc_no || '';
@@ -148,8 +177,13 @@ async function loadDoc(){
 document.getElementById('app').innerHTML = shell('資料建立 / 收據 / 新增', `
 <div class="form-wrap">
   <div class="form-topbar">
-    <div class="form-brand"><h1>昱拓弱電有限公司｜V3.14.6A 收據帶值修正版</h1><p>資料建立 / 收據 / 新增</p></div>
-    <div class="form-actions no-print"><button onclick="saveDoc()">存檔</button><button class="light" onclick="renderPreview()">更新預覽</button><button class="light" onclick="window.print()">列印正式版</button></div>
+    <div class="form-brand"><h1>昱拓弱電有限公司｜V3.14.6A 收據存檔鎖定版</h1><p>資料建立 / 收據 / 新增</p></div>
+    <div class="form-actions no-print">
+<button id="btn-save" onclick="saveDoc()">存檔</button>
+<button id="btn-preview" class="light" onclick="renderPreview()">更新預覽</button>
+<button class="light" onclick="window.print()">重新列印</button>
+<button class="light" onclick="location.href='/receipts.html'">返回清單</button>
+</div>
   </div>
   <div class="form-grid">
     <div class="form-panel">
@@ -176,11 +210,17 @@ document.getElementById('app').innerHTML = shell('資料建立 / 收據 / 新增
 
       <label>備註</label><textarea id="note" oninput="renderPreview()"></textarea>
       <div class="hint" style="margin-top:10px;">已開立收據的報價單，下一張收據將不再顯示，避免重覆項目。你只需選擇報價單、填入本次收款金額，再確認收款方式即可。</div>
+      <div id="lock-tip" class="hint" style="margin-top:10px;display:none;background:#eef6ff;border:1px solid #bfdbfe;color:#1e3a8a;">本筆收據已存檔，欄位已自動鎖定。此頁僅保留重新列印與返回清單功能。</div>
     </div>
     <div class="form-preview" id="preview"></div>
   </div>
 </div>`);
 
 initRefs();
-loadDoc();
+loadDoc().then(() => {
+  const autoPrint = (qs('autoprint') || '') === '1';
+  if (autoPrint) {
+    setTimeout(() => window.print(), 500);
+  }
+});
 </script></body></html>
