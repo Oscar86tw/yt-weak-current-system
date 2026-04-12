@@ -1,6 +1,6 @@
 import express from 'express';
-import { paymentQueue } from '../queue/queue.js';
 import { isDuplicateTransaction } from '../utils/idempotency.js';
+import { processPayment } from '../controllers/paymentController.js';
 import { logInfo } from '../utils/logger.js';
 
 const router = express.Router();
@@ -16,10 +16,10 @@ router.post('/linepay', async (req, res) => {
     return res.status(200).json({ ok: true, duplicate: true });
   }
 
-  await paymentQueue.add('payment-job', event);
-  logInfo('webhook accepted', { transactionId: event.transactionId });
+  await processPayment(event);
+  logInfo('webhook processed inline', { transactionId: event.transactionId });
 
-  return res.status(200).json({ ok: true, queued: true });
+  return res.status(200).json({ ok: true, processed: true });
 });
 
 export default router;

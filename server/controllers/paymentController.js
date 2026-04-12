@@ -21,7 +21,6 @@ export async function processPayment(event) {
         [event.transactionId, event.orderId, event.amount, 'unmatched', JSON.stringify(event)]
       );
       await client.query('COMMIT');
-      logInfo('payment unmatched', { orderId: event.orderId, transactionId: event.transactionId });
       return;
     }
 
@@ -32,6 +31,7 @@ export async function processPayment(event) {
 
     const receipt = await createReceipt(client, quote, event.amount);
     await updateFinance(client, receipt);
+
     await client.query(
       'INSERT INTO audit_log (event, payload) VALUES ($1, $2)',
       ['payment_processed', JSON.stringify({ payment: paymentResult.rows[0], receipt })]

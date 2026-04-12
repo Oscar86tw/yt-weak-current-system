@@ -17,7 +17,7 @@ router.get('/', (_req, res) => {
 </head>
 <body>
   <div class="card">
-    <h2>現場收款</h2>
+    <h2>現場收款（Render 免費版）</h2>
     <select id="quote"></select>
     <input id="amount" type="number" placeholder="輸入金額" />
     <input id="transactionId" placeholder="交易編號（自訂）" />

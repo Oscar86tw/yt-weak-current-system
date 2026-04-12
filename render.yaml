@@ -1,15 +1,14 @@
 services:
   - type: web
-    name: yt-weak-current-system
+    name: yt-v316-render-free
     runtime: node
-    buildCommand: npm install
-    startCommand: node server.js
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: yt-weak-current-db
-          property: connectionString
-
-databases:
-  - name: yt-weak-current-db
     plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: DB_URL
+        sync: false
+      - key: LINE_TOKEN
+        sync: false
