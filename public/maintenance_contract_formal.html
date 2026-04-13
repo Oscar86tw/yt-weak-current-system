@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>正式維護合約單｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/css/forms-template.css"></head><body><div id="app"></div><script src="/js/common.js"></script><script>
 document.getElementById('app').innerHTML = shell('資料建立 / 正式維護合約單 / 新增', `<div class="form-wrap">
-  <div class="form-topbar"><div class="form-brand"><h1>昱拓弱電有限公司｜V3.14.6A 正式維護合約單鎖定版</h1><p>資料建立 / 正式維護合約單 / 新增</p></div><div class="form-actions no-print" id="topActions"></div></div>
+  <div class="form-topbar"><div class="form-brand"><h1>昱拓弱電有限公司｜V3.14.6A 簽呈預設文字整合包</h1><p>資料建立 / 正式維護合約單 / 新增</p></div><div class="form-actions no-print" id="topActions"></div></div>
   <div class="form-grid"><div class="form-panel" id="leftPanel"></div><div class="form-preview" id="preview"></div></div>
 </div>`);
 
@@ -9,12 +9,29 @@ let clients = [];
 let refs = {};
 
 function today(){ return new Date().toISOString().slice(0,10); }
+function contractApprovalTemplates(){
+  return {
+    formal: `本案係依維護保養報價內容，續行辦理正式維護保養合約製作。為明確雙方維護範圍、服務頻率、付款方式及後續叫修作業依據，擬據以簽訂正式維護保養合約，並依合約內容執行後續服務。`,
+    community: `本案為社區弱電系統年度維護保養正式合約製作案，擬依業主已確認之維護範圍、頻率及金額辦理正式合約簽訂，以確保後續保養、巡檢及故障叫修作業有所依循。`,
+    extension: `本案係依既有維護保養合作內容續約辦理，為延續現行維護作業與設備保養服務，擬簽訂正式維護合約，以維持系統穩定運作及管理服務品質。`,
+    custom: ``
+  };
+}
+function applyContractApprovalTemplate(){
+  const key = document.getElementById('approval_template').value;
+  const templates = contractApprovalTemplates();
+  if (key === 'custom') return;
+  if (templates[key] !== undefined) {
+    refs.approval_note.value = templates[key];
+    renderPreview();
+  }
+}
 function defaultTerms(){ return `1. 本合約為年度維護保養合約，每月執行一次例行巡檢保養。
 2. 本合約僅包含定期保養檢測工資，若檢測發現設備故障需更換耗材或零件，材料費另行報價。
 3. 合約期間內享有叫修優先服務權，緊急叫修回應時間依雙方約定辦理。
 4. 保養完成並交付保養報告書後，請於次月10日前支付。`; }
 
-function initRefs(){ ['doc_no','doc_date','client_id','contract_name','contract_period','scope','frequency','amount','terms','approval_note'].forEach(id=>refs[id]=document.getElementById(id)); }
+function initRefs(){ ['doc_no','doc_date','client_id','contract_name','contract_period','scope','frequency','amount','terms','approval_note','approval_template'].forEach(id=>refs[id]=document.getElementById(id)); }
 function collect(){
   return { doc_no: refs.doc_no.value, doc_date: refs.doc_date.value, client_id: refs.client_id.value || null, contract_name: refs.contract_name.value, scope: refs.scope.value, frequency: refs.frequency.value, amount: Number(refs.amount.value||0), terms: refs.terms.value, approval_note: refs.approval_note.value, contract_kind: 'formal_maintenance_contract' };
 }
@@ -29,7 +46,8 @@ function bindBase(){
   refs.frequency.value = d.frequency || '每月設備檢測 1 次';
   refs.amount.value = d.amount || 0;
   refs.terms.value = d.terms || defaultTerms();
-  refs.approval_note.value = d.approval_note || '';
+  refs.approval_note.value = d.approval_note || `本案係依維護保養報價內容，續行辦理正式維護保養合約製作。為明確雙方維護範圍、服務頻率、付款方式及後續叫修作業依據，擬據以簽訂正式維護保養合約，並依合約內容執行後續服務。`;
+  refs.approval_template.value = d.approval_template || 'formal';
 }
 function renderForm(){
   topActions.innerHTML = `<button id="btn-save" onclick="saveDoc()">儲存到系統</button><button id="btn-print" class="secondary" onclick="window.print()">重新列印</button><button id="btn-back" class="light" onclick="location.href='/contracts_history.html'">返回清單</button>`;
@@ -41,11 +59,12 @@ function renderForm(){
 <label>服務範圍</label><textarea id="scope" rows="10"></textarea>
 <div class="form-row"><div><label>合約金額</label><input id="amount" type="number"></div><div></div></div>
 <label>合約條款</label><textarea id="terms" rows="8"></textarea>
-<label>簽呈</label><textarea id="approval_note" rows="4"></textarea>
+<label>簽呈範本</label><select id="approval_template"><option value="formal">正式合約版</option><option value="community">社區版</option><option value="extension">續約版</option><option value="custom">自訂內容</option></select><label>簽呈</label><textarea id="approval_note" rows="4"></textarea>
 <div id="lock-tip" class="hint" style="margin-top:10px;display:none;background:#eef6ff;border:1px solid #bfdbfe;color:#1e3a8a;">本筆正式維護合約單已存檔，欄位已自動鎖定。此頁僅保留重新列印與返回清單功能。</div>`;
   initRefs();
   bindBase();
-  ['doc_no','doc_date','client_id','contract_name','scope','frequency','amount','terms','approval_note'].forEach(id => { refs[id].addEventListener('input', renderPreview); refs[id].addEventListener('change', renderPreview); });
+  ['doc_no','doc_date','client_id','contract_name','scope','frequency','amount','terms','approval_note','approval_template'].forEach(id => { refs[id].addEventListener('input', renderPreview); refs[id].addEventListener('change', renderPreview); });
+  refs.approval_template.addEventListener('change', applyContractApprovalTemplate);
   renderPreview();
 }
 function renderPreview(){
@@ -117,7 +136,7 @@ function lockSavedForm(){
         frequency: q.frequency,
         amount: q.total || q.amount || 0,
         terms: defaultTerms(),
-        approval_note: q.approval_note || ''
+        approval_note: q.approval_note || '本案係依維護保養報價內容，續行辦理正式維護保養合約製作。為明確雙方維護範圍、服務頻率、付款方式及後續叫修作業依據，擬據以簽訂正式維護保養合約，並依合約內容執行後續服務。'
       };
     }
   }

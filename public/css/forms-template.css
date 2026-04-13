@@ -303,3 +303,25 @@
   .table-wrap{border:none;padding:0;margin-bottom:10px}
   .business-table th,.business-table td{border:1px solid #222;padding:7px 8px;font-size:12px}
 }
+
+
+.timeline-wrap{margin-bottom:18px}
+.timeline-client{border:1px solid #d9e1ee;border-radius:18px;padding:16px 18px;margin-bottom:14px;background:#fff}
+.timeline-client-name{font-size:18px;font-weight:700;color:#0f172a;margin-bottom:12px}
+.timeline-list{position:relative}
+.timeline-item{position:relative;padding-left:28px;padding-bottom:14px}
+.timeline-dot{position:absolute;left:0;top:8px;width:12px;height:12px;border-radius:50%;background:#1f4b89}
+.timeline-line{position:absolute;left:5px;top:24px;width:2px;height:calc(100% - 10px);background:#cbd5e1}
+.timeline-card{background:#f8fafc;border:1px solid #d9e1ee;border-radius:14px;padding:12px 14px}
+.timeline-top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:6px}
+.timeline-kind{font-weight:700;color:#1e3a8a}
+.timeline-date{color:#64748b;font-size:13px}
+.timeline-no{font-weight:700;color:#111827}
+.timeline-title{margin-top:4px;color:#334155}
+.timeline-amount{margin-top:6px;color:#0f172a}
+@media print{
+  .timeline-client{border:1px solid #222;border-radius:0;padding:10px;margin-bottom:10px}
+  .timeline-client-name{font-size:16px}
+  .timeline-card{border:1px solid #222;border-radius:0;background:#fff}
+  .timeline-kind,.timeline-no,.timeline-title,.timeline-amount,.timeline-date{font-size:12px}
+}

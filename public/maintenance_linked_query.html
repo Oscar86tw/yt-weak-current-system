@@ -20,6 +20,11 @@ document.getElementById('app').innerHTML = shell('資料建立 / 維護保養關
 
   <div id="summary" class="summary-grid"></div>
 
+  <div class="table-wrap timeline-wrap">
+    <div class="section-title">同一客戶的文件生命週期時間線</div>
+    <div id="timeline"></div>
+  </div>
+
   <div class="link-grid">
     <div class="table-wrap">
       <div class="section-title">維護保養報價單／正式維護合約單</div>
@@ -60,6 +65,71 @@ document.getElementById('app').innerHTML = shell('資料建立 / 維護保養關
   </div>
 </div>`);
 
+function dt(v){
+  if(!v) return '';
+  return String(v).slice(0,10);
+}
+
+function groupByClient(contracts, receipts){
+  const map = {};
+  contracts.forEach(r => {
+    const key = (r.client_name || '未指定客戶').trim();
+    (map[key] ||= []).push({
+      kind: r.contract_kind === 'formal_maintenance_contract' ? '正式維護合約單' : '維護保養報價單',
+      date: dt(r.doc_date),
+      title: r.contract_name || '',
+      no: r.doc_no || '',
+      amount: Number(r.amount || 0),
+      href: (r.contract_kind === 'formal_maintenance_contract' ? '/maintenance_contract_formal.html' : '/contracts.html') + '?id=' + r.id
+    });
+  });
+  receipts.forEach(r => {
+    const key = (r.client_name || '未指定客戶').trim();
+    (map[key] ||= []).push({
+      kind: '收據',
+      date: dt(r.receipt_date),
+      title: r.project_name || '',
+      no: r.receipt_no || '',
+      amount: Number(r.amount_received || 0),
+      href: '/receipt.html?id=' + r.id
+    });
+  });
+  Object.keys(map).forEach(k => map[k].sort((a,b) => String(a.date).localeCompare(String(b.date))));
+  return map;
+}
+
+function renderTimeline(contracts, receipts){
+  const grouped = groupByClient(contracts, receipts);
+  const clients = Object.keys(grouped).sort();
+  if(!clients.length){
+    timeline.innerHTML = '<div class="empty-row">查無可串聯的生命週期資料</div>';
+    return;
+  }
+  timeline.innerHTML = clients.map(client => `
+    <div class="timeline-client">
+      <div class="timeline-client-name">${client}</div>
+      <div class="timeline-list">
+        ${grouped[client].map((item, idx) => `
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div class="timeline-card">
+              <div class="timeline-top">
+                <span class="timeline-kind">${item.kind}</span>
+                <span class="timeline-date">${item.date || '—'}</span>
+              </div>
+              <div class="timeline-no">${item.no || ''}</div>
+              <div class="timeline-title">${item.title || '—'}</div>
+              <div class="timeline-amount">金額：NT$ ${money(item.amount || 0)}</div>
+              <div class="no-print" style="margin-top:8px;"><a class="btn-sm" href="${item.href}">查看文件</a></div>
+            </div>
+            ${idx < grouped[client].length - 1 ? '<div class="timeline-line"></div>' : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
 async function load(){
   const keyword = (document.getElementById('kw').value || '').trim();
   const data = await API.linkedDocs(keyword);
@@ -76,11 +146,13 @@ async function load(){
     <div class="summary-card"><div class="summary-title">收款總額</div><div class="summary-value">NT$ ${money(receiptTotal)}</div></div>
   `;
 
+  renderTimeline(contracts, receipts);
+
   contract_body.innerHTML = contracts.length ? contracts.map(r => `
     <tr>
       <td>${r.contract_kind === 'formal_maintenance_contract' ? '正式維護合約單' : '維護保養報價單'}</td>
       <td>${r.doc_no || ''}</td>
-      <td>${String(r.doc_date || '').slice(0,10)}</td>
+      <td>${dt(r.doc_date)}</td>
       <td>${r.client_name || ''}</td>
       <td>${r.contract_name || ''}</td>
       <td style="text-align:right;">NT$ ${money(r.amount || 0)}</td>
@@ -93,7 +165,7 @@ async function load(){
   receipt_body.innerHTML = receipts.length ? receipts.map(r => `
     <tr>
       <td>${r.receipt_no || ''}</td>
-      <td>${String(r.receipt_date || '').slice(0,10)}</td>
+      <td>${dt(r.receipt_date)}</td>
       <td>${r.client_name || ''}</td>
       <td>${r.quote_no || ''}</td>
       <td>${r.project_name || ''}</td>

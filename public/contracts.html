@@ -2,7 +2,7 @@
 document.getElementById('app').innerHTML = shell('資料建立 / 維護保養報價單 / 新增', `<div class="form-wrap">
   <div class="form-topbar">
     <div class="form-brand">
-      <h1>昱拓弱電有限公司｜V3.14.6A 維護保養報價單 PDF排版修正版</h1>
+      <h1>昱拓弱電有限公司｜V3.14.6A 簽呈預設文字整合包</h1>
       <p>資料建立 / 維護保養報價單 / 新增</p>
     </div>
     <div class="form-actions no-print" id="topActions"></div>
@@ -20,6 +20,24 @@ let refs = {};
 function today(){ return new Date().toISOString().slice(0,10); }
 function exportState(){ const blob = new Blob([JSON.stringify(collect(), null, 2)], {type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='maintenance-quotation-form.json'; a.click(); }
 function importState(el){ const f=el.files&&el.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ window._formLoad=JSON.parse(r.result); renderForm(); renderPreview(); }; r.readAsText(f,'utf-8'); }
+function quoteApprovalTemplates(){
+  return {
+    maintenance: `為維持本案場弱電系統設備正常運作，並建立後續定期巡檢、保養維護及故障叫修之作業依據，擬依本次維護保養報價內容辦理正式保養合約製作。俟業主確認同意後，據以進行後續合約簽訂及維護服務執行。`,
+    community: `本案為社區弱電系統維護保養報價案件，維護範圍包含門禁、對講、監視、車道停管、BA中央監控及共同天線等設備之定期巡檢與保養。擬於業主確認報價內容後，續行製作並簽訂正式維護保養合約，以利後續維護作業及叫修服務之執行。`,
+    repair: `本案為弱電設備維護及查修性質之報價案件，擬依現場實際設備狀況與報價內容辦理後續作業。倘業主確認同意本報價內容，將據以安排後續維護、修繕或相關合約製作事宜。`,
+    custom: ``
+  };
+}
+function applyApprovalTemplate(){
+  const key = document.getElementById('approval_template').value;
+  const templates = quoteApprovalTemplates();
+  if (key === 'custom') return;
+  if (templates[key] !== undefined) {
+    refs.approval_note.value = templates[key];
+    renderPreview();
+  }
+}
+
 
 function defaultItems(){
   return `1|門禁管制系統|讀卡機感應測試與清潔\n電鎖吸力測試與校正\n外出開關接點檢測\n門禁軟體連線狀態檢查與備份\n緊急開門按鈕測試| | |
@@ -89,8 +107,9 @@ function bindBase(){
   refs.total.value = d.total || d.amount || 4494;
   refs.items_text.value = d.items_text || defaultItems();
   refs.terms.value = d.terms || defaultTerms();
-  refs.approval_note.value = d.approval_note || '本單為維護保養專用之獨立報價單；如業主確認同意後，再另行建立正式維護合約單。';
+  refs.approval_note.value = d.approval_note || `為維持本案場弱電系統設備正常運作，並建立後續定期巡檢、保養維護及故障叫修之作業依據，擬依本次維護保養報價內容辦理正式保養合約製作。俟業主確認同意後，據以進行後續合約簽訂及維護服務執行。`;
   refs.customer_agreed.checked = d.customer_agreed === 'Y';
+  refs.approval_template.value = d.approval_template || 'maintenance';
 }
 function fillClient(){
   const c = getClient();
@@ -100,7 +119,7 @@ function fillClient(){
   renderPreview();
 }
 function initRefs(){
-  ['doc_no','doc_date','client_id','contact_person','address','phone','valid_days','contract_name','site_name','inspect_date','frequency','subtotal','tax','total','items_text','terms','approval_note','customer_agreed'].forEach(id => refs[id] = document.getElementById(id));
+  ['doc_no','doc_date','client_id','contact_person','address','phone','valid_days','contract_name','site_name','inspect_date','frequency','subtotal','tax','total','items_text','terms','approval_note','customer_agreed','approval_template'].forEach(id => refs[id] = document.getElementById(id));
 }
 function renderForm(){
   topActions.innerHTML = `<button onclick="saveDoc()" id="btn-save">儲存到系統</button><button class="secondary" onclick="window.print()">列印 / 另存 PDF</button><button class="light" onclick="exportState()">匯出資料</button><label class="light" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">匯入資料<input type="file" accept=".json" style="display:none" onchange="importState(this)"></label><button class="light" onclick="clearForm()">清空</button><button class="light" onclick="goFormalContract()">一鍵轉正式維護合約單</button>`;
@@ -115,7 +134,7 @@ function renderForm(){
 <div class="form-row"><div><label>含稅總額</label><input id="total" type="number"></div><div><label style="display:flex;align-items:center;gap:8px;margin-top:30px;"><input id="customer_agreed" type="checkbox"> 客戶已同意，可後續簽正式合約</label></div></div>
 <label>點檢項目（格式：編號|系統類別|規格摘要|點檢|狀況|備註）</label><textarea id="items_text" rows="16"></textarea>
 <label>報價條款與備註</label><textarea id="terms" rows="8"></textarea>
-<label>簽呈</label><textarea id="approval_note" rows="4"></textarea>
+<label>簽呈範本</label><select id="approval_template"><option value="maintenance">維護保養版</option><option value="community">社區版</option><option value="repair">單次查修版</option><option value="custom">自訂內容</option></select><label>簽呈</label><textarea id="approval_note" rows="4"></textarea>
 <div class="hint" id="lock-tip" style="display:none;background:#eef6ff;border:1px solid #bfdbfe;color:#1e3a8a;">本筆維護保養報價單已存檔，欄位已自動鎖定。此頁僅保留重新列印、返回清單與一鍵轉正式維護合約單功能。</div>
 <div class="hint">右側會即時顯示 PDF 排版預覽。這是維護保養報價單，獨立於一般工程報價單之外。</div>`;
   initRefs();
@@ -125,6 +144,7 @@ function renderForm(){
     el.addEventListener(evt, renderPreview);
   });
   refs.client_id.addEventListener('change', fillClient);
+  refs.approval_template.addEventListener('change', applyApprovalTemplate);
   renderPreview();
 }
 function renderPreview(){
