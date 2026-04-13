@@ -387,14 +387,3 @@
   .bottom-party-line,.bottom-stamp-line,.bottom-date-title,.bottom-date-line{font-size:12px}
   .bottom-party-box{min-height:220px}
 }
-
-
-.pdf-order-note{
-  margin-bottom:12px;
-  padding:10px 12px;
-  background:#f8fafc;
-  border:1px dashed #cbd5e1;
-  border-radius:12px;
-  color:#475569;
-  font-size:13px;
-}
