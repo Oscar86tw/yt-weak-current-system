@@ -357,3 +357,33 @@
   .sign-title{font-size:14px}
   .sign-line-row,.formal-date-line,.formal-date-title{font-size:12px}
 }
+
+
+.vertical-party-block{padding:16px 18px}
+.party-section-title{font-weight:700;font-size:18px;margin-bottom:16px}
+.party-col{display:flex;flex-direction:column;gap:10px}
+.party-line{display:flex;align-items:flex-start;gap:10px;line-height:1.9}
+.party-label-v{min-width:120px;font-weight:700}
+.party-value-v{flex:1;border-bottom:1px solid transparent}
+@media print{
+  .party-section-title{font-size:16px}
+  .party-line,.party-label-v,.party-value-v{font-size:12px}
+}
+
+
+.formal-bottom-sign{margin-top:34px;border-top:2px solid #111;padding-top:18px}
+.bottom-sign-title{font-size:18px;font-weight:700;margin-bottom:14px}
+.bottom-sign-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+.bottom-party-box{border:1px solid #111;padding:16px 18px;min-height:260px;display:flex;flex-direction:column}
+.bottom-party-heading{font-size:18px;font-weight:700;text-align:center;margin-bottom:14px}
+.bottom-party-line{line-height:1.9;margin-bottom:6px}
+.bottom-sign-space{flex:1;min-height:48px}
+.bottom-stamp-line{margin-top:8px}
+.bottom-date-box{margin-top:18px;border:1px solid #111;padding:16px;text-align:center}
+.bottom-date-title{font-weight:700;margin-bottom:10px}
+.bottom-date-line{letter-spacing:2px}
+@media print{
+  .bottom-sign-title,.bottom-party-heading{font-size:16px}
+  .bottom-party-line,.bottom-stamp-line,.bottom-date-title,.bottom-date-line{font-size:12px}
+  .bottom-party-box{min-height:220px}
+}

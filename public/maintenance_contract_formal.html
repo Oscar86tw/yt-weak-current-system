@@ -2,7 +2,7 @@
 document.getElementById('app').innerHTML = shell('資料建立 / 正式維護合約單 / 新增', `<div class="form-wrap">
   <div class="form-topbar">
     <div class="form-brand">
-      <h1>昱拓弱電有限公司｜V3.14.6D 簽章日期版</h1>
+      <h1>昱拓弱電有限公司｜V3.14.6F 底部正式簽約版</h1>
       <p>資料建立 / 正式維護合約單 / 新增</p>
     </div>
     <div class="form-actions no-print" id="topActions"></div>
@@ -156,19 +156,24 @@ function renderPreview(){
   preview.innerHTML = `<div class="pdf-sheet">
     <div class="formal-title">弱電系統維護保養合約書</div>
     <div class="formal-no">合約單號：${d.doc_no || ''}</div>
-    <div class="formal-party-block">
-      <div><strong>立合約書人：</strong></div>
-      <div class="party-row"><span class="party-label">甲　方：</span><span>${d.party_a_name || '________________'}</span></div>
-      <div class="party-row"><span class="party-label">法定代理人／主任委員：</span><span>${d.party_a_rep || '________________'}</span></div>
-      <div class="party-row"><span class="party-label">統一編號：</span><span>${d.party_a_tax_id || '________________'}</span></div>
-      <div class="party-row"><span class="party-label">聯絡地址：</span><span>${d.party_a_address || '________________'}</span></div>
-      <div class="party-row"><span class="party-label">聯絡電話：</span><span>${d.party_a_phone || '________________'}</span></div>
-      <br>
-      <div class="party-row"><span class="party-label">乙　方：</span><span>昱拓弱電有限公司</span></div>
-      <div class="party-row"><span class="party-label">負責人：</span><span>鄧巧玲</span></div>
-      <div class="party-row"><span class="party-label">統一編號：</span><span>62220958</span></div>
-      <div class="party-row"><span class="party-label">聯絡地址：</span><span>桃園市中壢區榮安一街490號13樓</span></div>
-      <div class="party-row"><span class="party-label">聯絡電話：</span><span>0960-770-512</span></div>
+    <div class="formal-party-block vertical-party-block">
+      <div class="party-section-title">立合約書人</div>
+
+      <div class="party-col">
+        <div class="party-line"><span class="party-label-v">甲　方：</span><span class="party-value-v">${d.party_a_name || '________________________'}</span></div>
+        <div class="party-line"><span class="party-label-v">法定代理人：</span><span class="party-value-v">${d.party_a_rep || '________________________'}</span></div>
+        <div class="party-line"><span class="party-label-v">統一編號：</span><span class="party-value-v">${d.party_a_tax_id || '________________________'}</span></div>
+        <div class="party-line"><span class="party-label-v">聯絡地址：</span><span class="party-value-v">${d.party_a_address || '________________________'}</span></div>
+        <div class="party-line"><span class="party-label-v">聯絡電話：</span><span class="party-value-v">${d.party_a_phone || '________________________'}</span></div>
+      </div>
+
+      <div class="party-col" style="margin-top:18px;">
+        <div class="party-line"><span class="party-label-v">乙　方：</span><span class="party-value-v">昱拓弱電有限公司</span></div>
+        <div class="party-line"><span class="party-label-v">負責人：</span><span class="party-value-v">鄧巧玲</span></div>
+        <div class="party-line"><span class="party-label-v">統一編號：</span><span class="party-value-v">62220958</span></div>
+        <div class="party-line"><span class="party-label-v">聯絡地址：</span><span class="party-value-v">桃園市中壢區榮安一街490號13樓</span></div>
+        <div class="party-line"><span class="party-label-v">聯絡電話：</span><span class="party-value-v">0960-770-512</span></div>
+      </div>
     </div>
 
     <div class="formal-desc">甲乙雙方就公共設施弱電系統維護保養事宜，達成合意，約定條款如下：</div>
@@ -180,25 +185,33 @@ function renderPreview(){
     <div class="formal-article"><strong>第五條　簽呈</strong><br>${(d.approval_note || '—').replace(/\n/g,'<br>')}</div>
     <div class="formal-article"><strong>第六條　其他條款</strong><br>${(d.terms || '—').replace(/\n/g,'<br>')}</div>
 
-    <div class="formal-sign-section">
-      <div class="formal-sign-grid">
-        <div class="formal-sign-box">
-          <div class="sign-title">立合約書人（甲方）</div>
-          <div class="sign-line-row">社區／管委會名稱：${d.party_a_name || '________________________'}</div>
-          <div class="sign-line-row">法定代理人／主任委員：${d.party_a_rep || '________________________'}</div>
-          <div class="sign-line-row">簽章：________________________</div>
+    <div class="formal-bottom-sign">
+      <div class="bottom-sign-title">立合約書人</div>
+      <div class="bottom-sign-grid">
+        <div class="bottom-party-box">
+          <div class="bottom-party-heading">甲　方</div>
+          <div class="bottom-party-line">名　稱：${d.party_a_name || '________________________'}</div>
+          <div class="bottom-party-line">法定代理人：${d.party_a_rep || '________________________'}</div>
+          <div class="bottom-party-line">統一編號：${d.party_a_tax_id || '________________________'}</div>
+          <div class="bottom-party-line">聯絡地址：${d.party_a_address || '________________________'}</div>
+          <div class="bottom-party-line">聯絡電話：${d.party_a_phone || '________________________'}</div>
+          <div class="bottom-sign-space"></div>
+          <div class="bottom-stamp-line">簽章：________________________</div>
         </div>
-        <div class="formal-sign-box">
-          <div class="sign-title">立合約書人（乙方）</div>
-          <div class="sign-line-row">公司名稱：昱拓弱電有限公司</div>
-          <div class="sign-line-row">負責人：鄧巧玲</div>
-          <div class="sign-line-row">簽章：________________________</div>
+        <div class="bottom-party-box">
+          <div class="bottom-party-heading">乙　方</div>
+          <div class="bottom-party-line">名　稱：昱拓弱電有限公司</div>
+          <div class="bottom-party-line">負責人：鄧巧玲</div>
+          <div class="bottom-party-line">統一編號：62220958</div>
+          <div class="bottom-party-line">聯絡地址：桃園市中壢區榮安一街490號13樓</div>
+          <div class="bottom-party-line">聯絡電話：0960-770-512</div>
+          <div class="bottom-sign-space"></div>
+          <div class="bottom-stamp-line">簽章：________________________</div>
         </div>
       </div>
-
-      <div class="formal-date-box">
-        <div class="formal-date-title">簽約日期</div>
-        <div class="formal-date-line">中華民國　__________　年　__________　月　__________　日</div>
+      <div class="bottom-date-box">
+        <div class="bottom-date-title">簽約日期</div>
+        <div class="bottom-date-line">中華民國　__________　年　__________　月　__________　日</div>
       </div>
     </div>
   </div>`;
