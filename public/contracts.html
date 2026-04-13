@@ -2,7 +2,7 @@
 document.getElementById('app').innerHTML = shell('資料建立 / 維護保養報價單 / 新增', `<div class="form-wrap">
   <div class="form-topbar">
     <div class="form-brand">
-      <h1>昱拓弱電有限公司｜V3.14.6B 客戶資料自動帶入版</h1>
+      <h1>昱拓弱電有限公司｜V3.14.6A 簽呈預設文字整合包</h1>
       <p>資料建立 / 維護保養報價單 / 新增</p>
     </div>
     <div class="form-actions no-print" id="topActions"></div>
@@ -115,11 +115,7 @@ function fillClient(){
   const c = getClient();
   if(!c) return;
   refs.address.value = c.address || '';
-  refs.phone.value = c.phone || c.contact_phone || '';
-  refs.contact_person.value = c.contact_person || c.contact_name || c.contact || '總幹事';
-  if(!refs.site_name.value.trim()){
-    refs.site_name.value = c.client_name || '';
-  }
+  refs.phone.value = c.phone || '';
   renderPreview();
 }
 function initRefs(){
@@ -130,8 +126,8 @@ function renderForm(){
   leftPanel.innerHTML = `<div class="form-section-title">基本資料</div>
 <label>單號</label><input id="doc_no">
 <div class="form-row"><div><label>報價日期</label><input id="doc_date" type="date"></div><div><label>客戶名稱</label><select id="client_id"><option value="">請選擇客戶</option>${clients.map(c=>`<option value="${c.id}">${c.client_name}</option>`).join('')}</select></div></div>
-<div class="form-row"><div><label>聯絡人</label><input id="contact_person" readonly style="background:#f5f7fb;"></div><div><label>電話</label><input id="phone" readonly style="background:#f5f7fb;"></div></div>
-<label>地址</label><input id="address" readonly style="background:#f5f7fb;">
+<div class="form-row"><div><label>聯絡人</label><input id="contact_person"></div><div><label>電話</label><input id="phone"></div></div>
+<label>地址</label><input id="address">
 <div class="form-row"><div><label>有效期限（天）</label><input id="valid_days" type="number"></div><div><label>工程案名</label><input id="site_name"></div></div>
 <div class="form-row"><div><label>點檢日期</label><input id="inspect_date" type="date"></div><div><label>維護頻率</label><input id="frequency"></div></div>
 <div class="form-row"><div><label>未稅金額</label><input id="subtotal" type="number"></div><div><label>營業稅</label><input id="tax" type="number"></div></div>
@@ -140,7 +136,7 @@ function renderForm(){
 <label>報價條款與備註</label><textarea id="terms" rows="8"></textarea>
 <label>簽呈範本</label><select id="approval_template"><option value="maintenance">維護保養版</option><option value="community">社區版</option><option value="repair">單次查修版</option><option value="custom">自訂內容</option></select><label>簽呈</label><textarea id="approval_note" rows="4"></textarea>
 <div class="hint" id="lock-tip" style="display:none;background:#eef6ff;border:1px solid #bfdbfe;color:#1e3a8a;">本筆維護保養報價單已存檔，欄位已自動鎖定。此頁僅保留重新列印、返回清單與一鍵轉正式維護合約單功能。</div>
-<div class="hint">選取客戶後，聯絡人、電話、地址會由客戶資料自動帶入，不需要再重複輸入。右側會即時顯示 PDF 排版預覽。這是維護保養報價單，獨立於一般工程報價單之外。</div>`;
+<div class="hint">右側會即時顯示 PDF 排版預覽。這是維護保養報價單，獨立於一般工程報價單之外。</div>`;
   initRefs();
   bindBase();
   Object.values(refs).forEach(el => {
@@ -149,8 +145,7 @@ function renderForm(){
   });
   refs.client_id.addEventListener('change', fillClient);
   refs.approval_template.addEventListener('change', applyApprovalTemplate);
-  if (refs.client_id.value) fillClient();
-  else renderPreview();
+  renderPreview();
 }
 function renderPreview(){
   const d = collect();

@@ -1,7 +1,16 @@
 <!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>正式維護合約單｜昱拓弱電</title><link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/css/forms-template.css"></head><body><div id="app"></div><script src="/js/common.js"></script><script>
 document.getElementById('app').innerHTML = shell('資料建立 / 正式維護合約單 / 新增', `<div class="form-wrap">
-  <div class="form-topbar"><div class="form-brand"><h1>昱拓弱電有限公司｜V3.14.6B 客戶資料自動帶入版</h1><p>資料建立 / 正式維護合約單 / 新增</p></div><div class="form-actions no-print" id="topActions"></div></div>
-  <div class="form-grid"><div class="form-panel" id="leftPanel"></div><div class="form-preview" id="preview"></div></div>
+  <div class="form-topbar">
+    <div class="form-brand">
+      <h1>昱拓弱電有限公司｜V3.14.6D 簽章日期版</h1>
+      <p>資料建立 / 正式維護合約單 / 新增</p>
+    </div>
+    <div class="form-actions no-print" id="topActions"></div>
+  </div>
+  <div class="form-grid">
+    <div class="form-panel" id="leftPanel"></div>
+    <div class="form-preview pdf-like" id="preview"></div>
+  </div>
 </div>`);
 
 const state = { id: qs('id') || '' };
@@ -9,6 +18,7 @@ let clients = [];
 let refs = {};
 
 function today(){ return new Date().toISOString().slice(0,10); }
+
 function contractApprovalTemplates(){
   return {
     formal: `本案係依維護保養報價內容，續行辦理正式維護保養合約製作。為明確雙方維護範圍、服務頻率、付款方式及後續叫修作業依據，擬據以簽訂正式維護保養合約，並依合約內容執行後續服務。`,
@@ -18,7 +28,7 @@ function contractApprovalTemplates(){
   };
 }
 function applyContractApprovalTemplate(){
-  const key = document.getElementById('approval_template').value;
+  const key = refs.approval_template.value;
   const templates = contractApprovalTemplates();
   if (key === 'custom') return;
   if (templates[key] !== undefined) {
@@ -26,73 +36,174 @@ function applyContractApprovalTemplate(){
     renderPreview();
   }
 }
-function defaultTerms(){ return `1. 本合約為年度維護保養合約，每月執行一次例行巡檢保養。
-2. 本合約僅包含定期保養檢測工資，若檢測發現設備故障需更換耗材或零件，材料費另行報價。
-3. 合約期間內享有叫修優先服務權，緊急叫修回應時間依雙方約定辦理。
-4. 保養完成並交付保養報告書後，請於次月10日前支付。`; }
+function defaultTerms(){
+  return `第一條　維護標的及次數
+甲方委由乙方辦理社區公共設施弱電系統之定期檢測、巡檢、保養及必要之功能測試，維護次數為每月一次。
 
-function initRefs(){ ['doc_no','doc_date','client_id','contract_name','contract_period','scope','frequency','amount','terms','approval_note','approval_template'].forEach(id=>refs[id]=document.getElementById(id)); }
-function collect(){
-  return { doc_no: refs.doc_no.value, doc_date: refs.doc_date.value, client_id: refs.client_id.value || null, contract_name: refs.contract_name.value, scope: refs.scope.value, frequency: refs.frequency.value, amount: Number(refs.amount.value||0), terms: refs.terms.value, approval_note: refs.approval_note.value, contract_kind: 'formal_maintenance_contract' };
+第二條　合約期間
+本合約期間自 ______ 年 ______ 月 ______ 日起至 ______ 年 ______ 月 ______ 日止。
+
+第三條　維護報酬與付款方式
+本合約維護保養費用為每月新台幣 ______ 元整，甲方應依約完成付款。
+
+第四條　維護範圍
+乙方應依本合約約定內容，提供設備功能檢測、基礎清潔保養、線路及端子接點檢查、異常初步判斷及保養紀錄。
+
+第五條　不含事項
+本合約費用僅包含定期維護保養、巡檢及基礎測試工資；材料、耗材、零件更換、設備更新及額外修繕另行報價。
+
+第六條　緊急叫修
+乙方於合約期間內提供甲方設備異常之叫修服務，非正常工作時段或合約範圍外服務得另行計費。
+
+第七條　爭議處理
+如因本合約發生爭議，雙方同意以臺灣桃園地方法院為第一審管轄法院。`;
 }
+
+function initRefs(){
+  ['doc_no','doc_date','client_id','party_a_name','party_a_rep','party_a_tax_id','party_a_address','party_a_phone','contract_name','contract_period_start','contract_period_end','scope','frequency','amount','terms','approval_note','approval_template'].forEach(id=>refs[id]=document.getElementById(id));
+}
+
+function getClient(){
+  return clients.find(x => String(x.id) === String(refs.client_id.value));
+}
+
+function collect(){
+  return {
+    doc_no: refs.doc_no.value,
+    doc_date: refs.doc_date.value,
+    client_id: refs.client_id.value || null,
+    contract_name: refs.contract_name.value,
+    party_a_name: refs.party_a_name.value,
+    party_a_rep: refs.party_a_rep.value,
+    party_a_tax_id: refs.party_a_tax_id.value,
+    party_a_address: refs.party_a_address.value,
+    party_a_phone: refs.party_a_phone.value,
+    contract_period_start: refs.contract_period_start.value,
+    contract_period_end: refs.contract_period_end.value,
+    scope: refs.scope.value,
+    frequency: refs.frequency.value,
+    amount: Number(refs.amount.value||0),
+    terms: refs.terms.value,
+    approval_note: refs.approval_note.value,
+    approval_template: refs.approval_template.value,
+    contract_kind: 'formal_maintenance_contract'
+  };
+}
+
+function bindClientToPartyA(){
+  const c = getClient();
+  if(!c) return;
+  refs.party_a_name.value = c.client_name || '';
+  refs.party_a_rep.value = c.contact_person || c.contact_name || c.contact || '';
+  refs.party_a_tax_id.value = c.tax_id || '';
+  refs.party_a_address.value = c.address || '';
+  refs.party_a_phone.value = c.phone || c.contact_phone || '';
+  renderPreview();
+}
+
 function bindBase(){
   const d = window._formLoad || {};
   refs.doc_no.value = d.doc_no || '';
   refs.doc_date.value = d.doc_date || today();
   refs.client_id.value = d.client_id ? String(d.client_id) : '';
   refs.contract_name.value = d.contract_name || '弱電系統維護保養合約書';
-  refs.contract_period.value = d.contract_period || '年度保養合約';
-  refs.scope.value = d.scope || '';
-  refs.frequency.value = d.frequency || '每月設備檢測 1 次';
+  refs.party_a_name.value = d.party_a_name || '';
+  refs.party_a_rep.value = d.party_a_rep || '';
+  refs.party_a_tax_id.value = d.party_a_tax_id || '';
+  refs.party_a_address.value = d.party_a_address || '';
+  refs.party_a_phone.value = d.party_a_phone || '';
+  refs.contract_period_start.value = d.contract_period_start || '';
+  refs.contract_period_end.value = d.contract_period_end || '';
+  refs.scope.value = d.scope || '一、門禁管制系統\n二、對講機系統\n三、數位監視系統\n四、車道停管系統\n五、BA中央監控系統\n六、共同天線系統';
+  refs.frequency.value = d.frequency || '每月1次';
   refs.amount.value = d.amount || 0;
   refs.terms.value = d.terms || defaultTerms();
   refs.approval_note.value = d.approval_note || `本案係依維護保養報價內容，續行辦理正式維護保養合約製作。為明確雙方維護範圍、服務頻率、付款方式及後續叫修作業依據，擬據以簽訂正式維護保養合約，並依合約內容執行後續服務。`;
   refs.approval_template.value = d.approval_template || 'formal';
 }
+
 function renderForm(){
   topActions.innerHTML = `<button id="btn-save" onclick="saveDoc()">儲存到系統</button><button id="btn-print" class="secondary" onclick="window.print()">重新列印</button><button id="btn-back" class="light" onclick="location.href='/contracts_history.html'">返回清單</button>`;
   leftPanel.innerHTML = `<div class="form-section-title">正式維護合約資料</div>
 <label>合約單號</label><input id="doc_no">
 <div class="form-row"><div><label>日期</label><input id="doc_date" type="date"></div><div><label>客戶</label><select id="client_id"><option value="">請選擇客戶</option>${clients.map(c=>`<option value="${c.id}">${c.client_name}</option>`).join('')}</select></div></div>
 <label>合約名稱</label><input id="contract_name">
-<div class="form-row"><div><label>合約期間</label><input id="contract_period" disabled value="年度保養合約"></div><div><label>維護頻率</label><input id="frequency"></div></div>
-<label>服務範圍</label><textarea id="scope" rows="10"></textarea>
-<div class="form-row"><div><label>合約金額</label><input id="amount" type="number"></div><div></div></div>
-<label>合約條款</label><textarea id="terms" rows="8"></textarea>
-<label>簽呈範本</label><select id="approval_template"><option value="formal">正式合約版</option><option value="community">社區版</option><option value="extension">續約版</option><option value="custom">自訂內容</option></select><label>簽呈</label><textarea id="approval_note" rows="4"></textarea>
+<div class="form-row"><div><label>甲方名稱</label><input id="party_a_name"></div><div><label>法定代理人／主任委員</label><input id="party_a_rep"></div></div>
+<div class="form-row"><div><label>甲方統一編號</label><input id="party_a_tax_id"></div><div><label>甲方電話</label><input id="party_a_phone"></div></div>
+<label>甲方地址</label><input id="party_a_address">
+<div class="form-row"><div><label>合約起日</label><input id="contract_period_start" type="date"></div><div><label>合約迄日</label><input id="contract_period_end" type="date"></div></div>
+<div class="form-row"><div><label>維護頻率</label><input id="frequency"></div><div><label>每月金額</label><input id="amount" type="number"></div></div>
+<label>服務範圍</label><textarea id="scope" rows="7"></textarea>
+<label>簽呈範本</label><select id="approval_template"><option value="formal">正式合約版</option><option value="community">社區版</option><option value="extension">續約版</option><option value="custom">自訂內容</option></select>
+<label>簽呈</label><textarea id="approval_note" rows="4"></textarea>
+<label>合約條款</label><textarea id="terms" rows="10"></textarea>
 <div id="lock-tip" class="hint" style="margin-top:10px;display:none;background:#eef6ff;border:1px solid #bfdbfe;color:#1e3a8a;">本筆正式維護合約單已存檔，欄位已自動鎖定。此頁僅保留重新列印與返回清單功能。</div>`;
+
   initRefs();
   bindBase();
-  ['doc_no','doc_date','client_id','contract_name','scope','frequency','amount','terms','approval_note','approval_template'].forEach(id => { refs[id].addEventListener('input', renderPreview); refs[id].addEventListener('change', renderPreview); });
+  ['doc_no','doc_date','client_id','contract_name','party_a_name','party_a_rep','party_a_tax_id','party_a_address','party_a_phone','contract_period_start','contract_period_end','scope','frequency','amount','terms','approval_note','approval_template'].forEach(id => {
+    refs[id].addEventListener('input', renderPreview);
+    refs[id].addEventListener('change', renderPreview);
+  });
+  refs.client_id.addEventListener('change', bindClientToPartyA);
   refs.approval_template.addEventListener('change', applyContractApprovalTemplate);
-  renderPreview();
+  if (refs.client_id.value) bindClientToPartyA();
+  else renderPreview();
 }
+
 function renderPreview(){
   const d = collect();
-  const c = clients.find(x => String(x.id) === String(d.client_id));
   preview.innerHTML = `<div class="pdf-sheet">
-    <div class="pdf-title">弱電系統維護保養 合約書</div>
-    <div class="pdf-company">昱拓弱電有限公司</div>
-    <div class="pdf-header-grid">
-      <div>合約單號： ${d.doc_no || ''}</div><div>日期： ${d.doc_date || ''}</div>
-      <div>客戶名稱： ${c?.client_name || ''}</div><div>合約期間： 年度保養合約</div>
+    <div class="formal-title">弱電系統維護保養合約書</div>
+    <div class="formal-no">合約單號：${d.doc_no || ''}</div>
+    <div class="formal-party-block">
+      <div><strong>立合約書人：</strong></div>
+      <div class="party-row"><span class="party-label">甲　方：</span><span>${d.party_a_name || '________________'}</span></div>
+      <div class="party-row"><span class="party-label">法定代理人／主任委員：</span><span>${d.party_a_rep || '________________'}</span></div>
+      <div class="party-row"><span class="party-label">統一編號：</span><span>${d.party_a_tax_id || '________________'}</span></div>
+      <div class="party-row"><span class="party-label">聯絡地址：</span><span>${d.party_a_address || '________________'}</span></div>
+      <div class="party-row"><span class="party-label">聯絡電話：</span><span>${d.party_a_phone || '________________'}</span></div>
+      <br>
+      <div class="party-row"><span class="party-label">乙　方：</span><span>昱拓弱電有限公司</span></div>
+      <div class="party-row"><span class="party-label">負責人：</span><span>鄧巧玲</span></div>
+      <div class="party-row"><span class="party-label">統一編號：</span><span>62220958</span></div>
+      <div class="party-row"><span class="party-label">聯絡地址：</span><span>桃園市中壢區榮安一街490號13樓</span></div>
+      <div class="party-row"><span class="party-label">聯絡電話：</span><span>0960-770-512</span></div>
     </div>
-    <div class="pdf-quote-box">
-      <div class="money-line">合約名稱： ${d.contract_name || ''}</div>
-      <div class="money-line">維護頻率： ${d.frequency || ''}</div>
-      <div class="money-line">合約金額： <strong>NT$ ${money(d.amount || 0)} 元</strong></div>
-    </div>
-    <div class="pdf-terms-title">服務範圍</div>
-    <div class="pdf-terms">${(d.scope || '—').replace(/\n/g,'<br>')}</div>
-    <div class="pdf-terms-title">合約條款</div>
-    <div class="pdf-terms">${(d.terms || '').replace(/\n/g,'<br>')}</div>
-    <div class="pdf-approval"><strong>簽呈：</strong><br>${(d.approval_note || '—').replace(/\n/g,'<br>')}</div>
-    <div class="pdf-sign-grid">
-      <div class="pdf-sign-box"><div class="sign-company-title">客戶簽署確認</div><div class="sign-space"></div><div>____________________</div><div>(簽章)</div><div>日期：_____年_____月_____日</div></div>
-      <div class="pdf-sign-box"><div class="sign-company-title">昱拓弱電有限公司</div><div class="sign-space"></div><div>____________________</div><div>(公司印鑑)</div><div>統一編號：</div><div>聯絡地址：中壢市榮安一街490號13樓</div></div>
+
+    <div class="formal-desc">甲乙雙方就公共設施弱電系統維護保養事宜，達成合意，約定條款如下：</div>
+
+    <div class="formal-article"><strong>第一條　合約名稱</strong><br>${d.contract_name || '弱電系統維護保養合約書'}</div>
+    <div class="formal-article"><strong>第二條　合約期間</strong><br>自 ${d.contract_period_start || '______年____月____日'} 起至 ${d.contract_period_end || '______年____月____日'} 止。</div>
+    <div class="formal-article"><strong>第三條　維護標的及次數</strong><br>${(d.scope || '—').replace(/\n/g,'<br>')}<br><br>維護頻率：${d.frequency || '—'}</div>
+    <div class="formal-article"><strong>第四條　維護報酬與付款方式</strong><br>本合約維護保養費用為每月新台幣 <strong>NT$ ${money(d.amount || 0)}</strong> 元整，甲方應依約完成付款。</div>
+    <div class="formal-article"><strong>第五條　簽呈</strong><br>${(d.approval_note || '—').replace(/\n/g,'<br>')}</div>
+    <div class="formal-article"><strong>第六條　其他條款</strong><br>${(d.terms || '—').replace(/\n/g,'<br>')}</div>
+
+    <div class="formal-sign-section">
+      <div class="formal-sign-grid">
+        <div class="formal-sign-box">
+          <div class="sign-title">立合約書人（甲方）</div>
+          <div class="sign-line-row">社區／管委會名稱：${d.party_a_name || '________________________'}</div>
+          <div class="sign-line-row">法定代理人／主任委員：${d.party_a_rep || '________________________'}</div>
+          <div class="sign-line-row">簽章：________________________</div>
+        </div>
+        <div class="formal-sign-box">
+          <div class="sign-title">立合約書人（乙方）</div>
+          <div class="sign-line-row">公司名稱：昱拓弱電有限公司</div>
+          <div class="sign-line-row">負責人：鄧巧玲</div>
+          <div class="sign-line-row">簽章：________________________</div>
+        </div>
+      </div>
+
+      <div class="formal-date-box">
+        <div class="formal-date-title">簽約日期</div>
+        <div class="formal-date-line">中華民國　__________　年　__________　月　__________　日</div>
+      </div>
     </div>
   </div>`;
 }
+
 async function saveDoc(){
   const d = collect();
   if(!d.client_id) return alert('請選擇客戶');
@@ -106,7 +217,7 @@ async function saveDoc(){
 }
 
 function lockSavedForm(){
-  ['doc_date','client_id','contract_name','frequency','amount','terms','approval_note','scope'].forEach(id=>{
+  ['doc_date','client_id','contract_name','party_a_name','party_a_rep','party_a_tax_id','party_a_address','party_a_phone','contract_period_start','contract_period_end','scope','frequency','amount','terms','approval_note','approval_template'].forEach(id=>{
     const el = document.getElementById(id);
     if(!el) return;
     el.disabled = true;
@@ -119,27 +230,11 @@ function lockSavedForm(){
   const tip = document.getElementById('lock-tip');
   if(tip) tip.style.display = 'block';
 }
+
 (async()=>{
   clients = await API.getClients();
   const next = await API.nextNo('contract');
   window._formLoad = { doc_no: next.doc_no, doc_date: today() };
-  if ((qs('fromQuote') || '') === '1') {
-    const raw = localStorage.getItem('maintenance_quote_to_contract');
-    if (raw) {
-      const q = JSON.parse(raw);
-      window._formLoad = {
-        doc_no: next.doc_no,
-        doc_date: today(),
-        client_id: q.client_id,
-        contract_name: '弱電系統維護保養合約書',
-        scope: q.items_text ? q.items_text.replace(/\|/g,' ') : '',
-        frequency: q.frequency,
-        amount: q.total || q.amount || 0,
-        terms: defaultTerms(),
-        approval_note: q.approval_note || '本案係依維護保養報價內容，續行辦理正式維護保養合約製作。為明確雙方維護範圍、服務頻率、付款方式及後續叫修作業依據，擬據以簽訂正式維護保養合約，並依合約內容執行後續服務。'
-      };
-    }
-  }
   if(state.id){
     const d = await API.getContract(state.id);
     window._formLoad = d;
